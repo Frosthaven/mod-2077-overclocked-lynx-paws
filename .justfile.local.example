@@ -1,0 +1,30 @@
+# Copy this file to .justfile.local and adjust the paths for your system.
+# .justfile.local is gitignored and automatically imported by the main justfile.
+
+game := "/path/to/Cyberpunk 2077"
+
+# Create symlinks from game directory to repo
+link:
+    rm -rf "{{game}}/bin/x64/plugins/cyber_engine_tweaks/mods/OverclockedLynxPaws"
+    rm -rf "{{game}}/r6/scripts/OverclockedLynxPaws"
+    rm -rf "{{game}}/r6/tweaks/OverclockedLynxPaws"
+    rm -f "{{game}}/archive/pc/mod/WallRunning.archive"
+    rm -f "{{game}}/archive/pc/mod/WallRunning.archive.xl"
+    ln -sfn "{{repo}}/bin/x64/plugins/cyber_engine_tweaks/mods/OverclockedLynxPaws" \
+            "{{game}}/bin/x64/plugins/cyber_engine_tweaks/mods/OverclockedLynxPaws"
+    ln -sfn "{{repo}}/r6/scripts/OverclockedLynxPaws" \
+            "{{game}}/r6/scripts/OverclockedLynxPaws"
+    ln -sfn "{{repo}}/r6/tweaks/OverclockedLynxPaws" \
+            "{{game}}/r6/tweaks/OverclockedLynxPaws"
+    ln -sfn "{{repo}}/archive/pc/mod/WallRunning.archive" \
+            "{{game}}/archive/pc/mod/WallRunning.archive"
+    ln -sfn "{{repo}}/archive/pc/mod/WallRunning.archive.xl" \
+            "{{game}}/archive/pc/mod/WallRunning.archive.xl"
+
+# Remove symlinks (or leftover real directories) from game directory
+unlink:
+    rm -rf "{{game}}/bin/x64/plugins/cyber_engine_tweaks/mods/OverclockedLynxPaws"
+    rm -rf "{{game}}/r6/scripts/OverclockedLynxPaws"
+    rm -rf "{{game}}/r6/tweaks/OverclockedLynxPaws"
+    rm -f "{{game}}/archive/pc/mod/WallRunning.archive"
+    rm -f "{{game}}/archive/pc/mod/WallRunning.archive.xl"

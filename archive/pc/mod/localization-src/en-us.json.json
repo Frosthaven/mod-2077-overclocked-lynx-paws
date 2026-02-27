@@ -1,0 +1,38 @@
+{
+  "Header": {
+    "WKitJsonVersion": "0.0.9",
+    "GameVersion": 2120,
+    "DataType": "CR2W"
+  },
+  "Data": {
+    "Version": 195,
+    "BuildVersion": 0,
+    "RootChunk": {
+      "$type": "JsonResource",
+      "cookingPlatform": "PLATFORM_PC",
+      "root": {
+        "HandleId": "0",
+        "Data": {
+          "$type": "localizationPersistenceOnScreenEntries",
+          "entries": [
+            {
+              "$type": "localizationPersistenceOnScreenEntry",
+              "femaleVariant": "Overclocked Lynx Paws",
+              "maleVariant": "",
+              "primaryKey": "0",
+              "secondaryKey": "WallRunning-LynxPaws-Name"
+            },
+            {
+              "$type": "localizationPersistenceOnScreenEntry",
+              "femaleVariant": "Reduces detection sound radius by {int_0}%.\nReduces fall damage by {int_1}%.\n\u002B{int_2}% movement speed while crouching.\nEnables silent landing.\n\nEnables wall running, climbing, and jumping.\nEnables safe landing roll.",
+              "maleVariant": "",
+              "primaryKey": "0",
+              "secondaryKey": "WallRunning-LynxPaws-Description"
+            }
+          ]
+        }
+      }
+    },
+    "EmbeddedFiles": []
+  }
+}

@@ -1,0 +1,28 @@
+# Overclocked Lynx Paws - Rename Lynx Paws to Overclocked Lynx Paws
+# displayName uses ArchiveXL secondary key (resolved via localization archive)
+Items.AdvancedCatPawsUncommon:
+  displayName: WallRunning-LynxPaws-Name
+
+Items.AdvancedCatPawsUncommonPlus:
+  displayName: WallRunning-LynxPaws-Name
+
+Items.AdvancedCatPawsRare:
+  displayName: WallRunning-LynxPaws-Name
+
+Items.AdvancedCatPawsRarePlus:
+  displayName: WallRunning-LynxPaws-Name
+
+Items.AdvancedCatPawsEpic:
+  displayName: WallRunning-LynxPaws-Name
+
+Items.AdvancedCatPawsEpicPlus:
+  displayName: WallRunning-LynxPaws-Name
+
+Items.AdvancedCatPawsLegendary:
+  displayName: WallRunning-LynxPaws-Name
+
+Items.AdvancedCatPawsLegendaryPlus:
+  displayName: WallRunning-LynxPaws-Name
+
+Items.AdvancedCatPawsLegendaryPlusPlus:
+  displayName: WallRunning-LynxPaws-Name
