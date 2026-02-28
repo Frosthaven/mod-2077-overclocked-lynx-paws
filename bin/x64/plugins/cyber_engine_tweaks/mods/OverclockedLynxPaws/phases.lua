@@ -1208,6 +1208,11 @@ function Phases.update(dt, syncSettings, LynxPaw)
         end
     end
 
+    -- Crouch speed modifier: apply/remove based on crouch + equipment state
+    local isCrouching = Helpers.getDetailedLocomotionState()
+        == EnumInt(gamePSMDetailedLocomotionStates.Crouch)
+    LynxPaw.updateCrouchSpeed(isCrouching)
+
     -- Master toggle
     if not cfg.enabled then
         Kerenzikov.deactivate()

@@ -125,16 +125,11 @@ function LynxPaw.getStaminaMultiplier()
     return ok and result or 1.0
 end
 
---- Create TweakDB stat modifiers and effectors for all Lynx Paw variants (fall damage, crouch speed, silent landing).
+--- Create TweakDB stat modifiers for all Lynx Paw variants (fall damage, silent landing).
+--- Crouch speed is handled via CET stat modifier management (see updateCrouchSpeed).
 function LynxPaw.setupStats()
     -- Shared stat modifier records (created once)
     createConstantStatModifier("Items.CatPawsCanLandSilently", "Additive", "BaseStats.CanLandSilently", 1)
-
-    -- Crouch speed prereq (IsPlayerCrouching)
-    createRecordIfNotExists("Items.CatPawsStealthMovementMultiPrereqRecord", "gamedataMultiPrereq_Record")
-    TweakDB:SetFlat("Items.CatPawsStealthMovementMultiPrereqRecord.aggregationType", "AND")
-    TweakDB:SetFlat("Items.CatPawsStealthMovementMultiPrereqRecord.prereqClassName", "gameMultiPrereq")
-    TweakDB:SetFlat("Items.CatPawsStealthMovementMultiPrereqRecord.nestedPrereqs", {"Perks.IsPlayerCrouching"})
 
     for _, variant in ipairs(lynxPawVariants) do
         local tierStats = lynxPawTierStats[variant] or { crouch = 0.15, fallDmg = 0.25 }
@@ -152,30 +147,17 @@ function LynxPaw.setupStats()
         if stats then
             insertRecordIntoList(stats, fallDmgName)
             insertRecordIntoList(stats, "Items.CatPawsCanLandSilently")
+
+            -- Neutralize vanilla crouch speed bonus (replaced by CET-managed modifier)
+            for _, statID in ipairs(stats) do
+                pcall(function()
+                    if tostring(TweakDB:GetFlat(tostring(statID) .. ".statType")) == "BaseStats.MaxSpeed" then
+                        TweakDB:SetFlat(tostring(statID) .. ".value", 0)
+                    end
+                end)
+            end
+
             TweakDB:SetFlat(variant .. "_inline0.stats", stats)
-        end
-
-        -- Crouch speed effector (scaled per tier)
-        local crouchSpeed = tierStats.crouch
-        local effectorName = "Items.CatPawsCrouchSpeed_" .. variantKey
-        local modGroupName = effectorName .. "_StatGroup"
-        local modifierName = effectorName .. "_Modifier"
-
-        createConstantStatModifier(modifierName, "AdditiveMultiplier", "BaseStats.MaxSpeed", crouchSpeed)
-
-        createRecordIfNotExists(modGroupName, "gamedataStatModifierGroup_Record")
-        TweakDB:SetFlat(modGroupName .. ".statModsLimit", -1)
-        TweakDB:SetFlat(modGroupName .. ".statModifiers", {modifierName})
-
-        createRecordIfNotExists(effectorName, "gamedataApplyStatGroupEffector_Record")
-        TweakDB:SetFlat(effectorName .. ".effectorClassName", "ApplyStatGroupEffector")
-        TweakDB:SetFlat(effectorName .. ".prereqRecord", "Items.CatPawsStealthMovementMultiPrereqRecord")
-        TweakDB:SetFlat(effectorName .. ".statGroup", modGroupName)
-
-        local effectors = TweakDB:GetFlat(variant .. "_inline0.effectors")
-        if effectors then
-            insertRecordIntoList(effectors, effectorName)
-            TweakDB:SetFlat(variant .. "_inline0.effectors", effectors)
         end
     end
 end
@@ -207,6 +189,73 @@ function LynxPaw.updateDescriptions()
             })
         end)
     end
+end
+
+---------------------------------------------------------------------------
+-- CET-driven crouch speed modifier (replaces effector-based approach)
+---------------------------------------------------------------------------
+LynxPaw._crouchSpeedApplied = false
+LynxPaw._crouchSpeedModifier = nil
+
+--- Get the crouch speed bonus for the currently equipped Lynx Paw tier.
+--- @return number The crouch speed multiplier (0.08-0.30), or 0 if none equipped.
+function LynxPaw.getCrouchBonus()
+    local ok, result = pcall(function()
+        local esPlayerData = Game.GetScriptableSystemsContainer()
+            :Get("EquipmentSystem"):GetPlayerData(wallState.player)
+        local slotCount = esPlayerData:GetNumberOfSlots(gamedataEquipmentArea.LegsCW, false)
+        for i = 0, slotCount - 1 do
+            local itemID = esPlayerData:GetItemInEquipSlot(gamedataEquipmentArea.LegsCW, i)
+            local hash = itemID.id.hash
+            if hash and hash ~= 0 and LynxPaw.hashes and LynxPaw.hashes[hash] then
+                for variant, stats in pairs(lynxPawTierStats) do
+                    local variantHash = ItemID.new(TweakDBID.new(variant)).id.hash
+                    if variantHash == hash then
+                        return stats.crouch
+                    end
+                end
+            end
+        end
+        return 0
+    end)
+    return ok and result or 0
+end
+
+--- Apply or remove the crouch speed modifier based on current state.
+--- Called every frame from the update loop. Only touches the stats API on state transitions.
+--- @param isCrouching boolean Whether the player is currently crouching.
+function LynxPaw.updateCrouchSpeed(isCrouching)
+    local shouldApply = isCrouching and LynxPaw.equipped
+    if shouldApply and not LynxPaw._crouchSpeedApplied then
+        local bonus = LynxPaw.getCrouchBonus()
+        if bonus > 0 then
+            local modifier = RPGManager.CreateStatModifier(
+                gamedataStatType.MaxSpeed,
+                gameStatModifierType.AdditiveMultiplier,
+                bonus
+            )
+            Game.GetStatsSystem():AddModifier(
+                wallState.player:GetEntityID(), modifier
+            )
+            LynxPaw._crouchSpeedModifier = modifier
+            LynxPaw._crouchSpeedApplied = true
+        end
+    elseif not shouldApply and LynxPaw._crouchSpeedApplied then
+        LynxPaw.cleanupCrouchSpeed()
+    end
+end
+
+--- Force-remove the crouch speed modifier if currently applied.
+function LynxPaw.cleanupCrouchSpeed()
+    if LynxPaw._crouchSpeedApplied and LynxPaw._crouchSpeedModifier then
+        pcall(function()
+            Game.GetStatsSystem():RemoveModifier(
+                wallState.player:GetEntityID(), LynxPaw._crouchSpeedModifier
+            )
+        end)
+    end
+    LynxPaw._crouchSpeedModifier = nil
+    LynxPaw._crouchSpeedApplied = false
 end
 
 return LynxPaw
