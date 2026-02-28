@@ -28,8 +28,8 @@ local RHANG_SCOOP_DEG      = 12        -- pitch scoop amplitude during reverse h
 local WALL_RUN_GRACE_DURATION  = 0.25  -- seconds to ride through small wall gaps
 local WALL_RUN_VERT_PROBE_OFFSET = 0.8 -- height above/below targetZ to probe wall existence
 local WALL_RUN_MIN_SPEED      = 7.0   -- minimum wall run lateral speed (m/s)
+local WALL_RUN_MIN_ENTRY_SPEED = 12.0 -- minimum entry speed for wall run (m/s)
 local WALL_RUN_SPEED_DECAY    = 2.0   -- seconds for entry speed to decay to minimum
-
 -- Stamina costs (when cfg.drainStamina is enabled)
 local STAMINA_WALL_RUN_PER_SEC   = 90  -- per second while wall running
 local STAMINA_WALL_CLIMB_PER_SEC = 140 -- per second while wall climbing
@@ -129,6 +129,7 @@ local function cleanupWallState()
     wallState.kickDirection = nil
     wallState.timer        = 0
     wallState.cooldown     = 0
+    wallState.wallPathDist = 0
 end
 
 --- Transition to slide from any wall phase (stamina depletion or timer expiry).
@@ -144,13 +145,12 @@ local function enterWallRun(side, rayDir, wallNormal, isChain)
     wallState.phase    = "WALL_RUNNING"
     wallState.wallSide = side
     wallState.wallNormal = wallNormal or Vector4.new(-rayDir.x, -rayDir.y, 0, 0)
-    wallState.wallRunEntryNormal = Vector4.new(wallState.wallNormal.x, wallState.wallNormal.y, 0, 0)
     wallState.wallRunDir = WallDetect.calculateWallRunDirection(wallState.wallNormal)
     wallState.timer      = cfg.wallRunDuration
     wallState.wallRunUsedThisJump = true
     wallState.entryZ     = wallState.player:GetWorldPosition().z
     wallState.targetZ    = wallState.entryZ
-    wallState.wallRunEntrySpeed = math.max(Vector4.Length2D(wallState.player:GetVelocity()), WALL_RUN_MIN_SPEED)
+    wallState.wallRunEntrySpeed = math.max(Vector4.Length2D(wallState.player:GetVelocity()), WALL_RUN_MIN_ENTRY_SPEED)
     wallState.wallRunElapsed = 0
     wallState.footstepTimer = 0
     camera.targetTilt = (side == "right") and cfg.cameraTilt or -cfg.cameraTilt
@@ -161,6 +161,7 @@ local function enterWallRun(side, rayDir, wallNormal, isChain)
     setClimbBlock(true)
     wallState.isClimbBlocked = true
     wallState.wallLostTimer = nil
+    wallState.wallPathDist = 0
 
     if not isChain then Helpers.playSound("lcm_wallrun_in") end
     Kerenzikov.awardShinobiXP(isChain and 7.0 or 5.0)
@@ -504,19 +505,46 @@ local function updateWallRunning(dt, airborne, dashCancel, LynxPaw)
         lostReason = string.format("wall lost: rayDir=(%.2f,%.2f) range=%.2f", rayDir.x, rayDir.y, detectRange)
     end
 
-    -- 2. Obstacle ahead?
+    -- 2. Update normal + runDir from current surface so everything stays consistent
     if not wallLost then
-        local origin = Helpers.getPlayerHipPosition()
-        local lookAhead = wallState.wallRunEntrySpeed * 0.3
-        local hitAhead = Helpers.raycast(origin, wallState.wallRunDir, lookAhead)
-        if hitAhead then
+        local newNormal = WallDetect.calculateWallNormal(Helpers.getPlayerHipPosition(), hitPos)
+        local normalDot = wallState.wallNormal.x * newNormal.x + wallState.wallNormal.y * newNormal.y
+        if normalDot < 0.85 then
+            -- Sharp corner (frame-to-frame) — don't update normal/runDir, just feed grace timer
             wallLost = true
-            lostReason = string.format("obstacle ahead: dir=(%.2f,%.2f) lookAhead=%.2f",
-                wallState.wallRunDir.x, wallState.wallRunDir.y, lookAhead)
+            lostReason = string.format("curve: normalDot=%.3f prevN=(%.2f,%.2f) newN=(%.2f,%.2f)",
+                normalDot, wallState.wallNormal.x, wallState.wallNormal.y, newNormal.x, newNormal.y)
+        else
+            wallState.wallNormal = newNormal
+            -- Recompute wallRunDir perpendicular to updated normal, preserving travel direction
+            local candidate = Vector4.new(-newNormal.y, newNormal.x, 0, 0)
+            if (candidate.x * wallState.wallRunDir.x + candidate.y * wallState.wallRunDir.y) < 0 then
+                candidate = Vector4.new(-candidate.x, -candidate.y, 0, 0)
+            end
+            wallState.wallRunDir = candidate
+            -- Refresh rayDir to match updated normal
+            rayDir = Vector4.new(-newNormal.x, -newNormal.y, 0, 0)
         end
     end
 
-    -- 3. Wall ending ahead? (hip + knee fallback at offset position)
+    -- 3. Obstacle ahead? (ignore wall juts — similar normal means it's our wall)
+    if not wallLost then
+        local origin = Helpers.getPlayerHipPosition()
+        local lookAhead = wallState.wallRunEntrySpeed * 0.3
+        local hitAhead, hitAheadPos = Helpers.raycast(origin, wallState.wallRunDir, lookAhead)
+        if hitAhead then
+            local obsNormal = WallDetect.calculateWallNormal(origin, hitAheadPos)
+            local obsDot = obsNormal.x * wallState.wallNormal.x + obsNormal.y * wallState.wallNormal.y
+            if obsDot < 0.5 then
+                -- Genuinely different surface — treat as obstacle
+                wallLost = true
+                lostReason = string.format("obstacle ahead: dir=(%.2f,%.2f) lookAhead=%.2f obsDot=%.2f",
+                    wallState.wallRunDir.x, wallState.wallRunDir.y, lookAhead, obsDot)
+            end
+        end
+    end
+
+    -- 4. Wall ending ahead? (hip + knee fallback at offset position, extended range for juts)
     if not wallLost then
         local endLook = wallState.wallRunEntrySpeed * 0.1
         local aheadPos = Vector4.new(
@@ -524,24 +552,12 @@ local function updateWallRunning(dt, airborne, dashCancel, LynxPaw)
             pos.y + wallState.wallRunDir.y * endLook,
             pos.z, 1
         )
-        local wallAhead = Helpers.raycastWithKneeFallback(aheadPos, rayDir, detectRange)
+        -- Use wider detect range so juts don't occlude the wall behind them
+        local wallAhead = Helpers.raycastWithKneeFallback(aheadPos, rayDir, detectRange + 0.5)
         if not wallAhead then
             wallLost = true
             lostReason = string.format("wall ending: endLook=%.2f", endLook)
         end
-    end
-
-    -- 4. Curve check — normal deviation from entry (only when wall was found)
-    if not wallLost then
-        local newNormal = WallDetect.calculateWallNormal(Helpers.getPlayerHipPosition(), hitPos)
-        local normalDot = wallState.wallRunEntryNormal.x * newNormal.x + wallState.wallRunEntryNormal.y * newNormal.y
-        if normalDot < 0.95 then
-            Helpers.logDebug(string.format("[WR_EXIT] curve: normalDot=%.3f entryN=(%.2f,%.2f) newN=(%.2f,%.2f)",
-                normalDot, wallState.wallRunEntryNormal.x, wallState.wallRunEntryNormal.y, newNormal.x, newNormal.y))
-            exitWallRun()
-            return
-        end
-        wallState.wallNormal = newNormal
     end
 
     -- Shared grace timer — ride through brief gaps, exit on sustained loss
@@ -609,31 +625,37 @@ local function updateWallRunning(dt, airborne, dashCancel, LynxPaw)
 
     wallState.targetZ = wallState.targetZ + vertSpeed * dt
 
-    -- Lateral movement along wall — entry speed decays toward minimum over time
+    -- Lateral movement — speed decays toward minimum
     local decayFrac = math.min(wallState.wallRunElapsed / WALL_RUN_SPEED_DECAY, 1.0)
     local runSpeed = wallState.wallRunEntrySpeed + (WALL_RUN_MIN_SPEED - wallState.wallRunEntrySpeed) * decayFrac
     if wallState.kerenzikovActive then runSpeed = Kerenzikov.wallRunSpeed end
-    local moveX = wallState.wallRunDir.x * runSpeed * dt
-    local moveY = wallState.wallRunDir.y * runSpeed * dt
+    wallState.wallPathDist = wallState.wallPathDist + runSpeed * dt
 
-    -- Position: always coast (no wall snap), use wall hit only for distance enforcement
-    local wallDist = cfg.targetWallDist + 0.15
-    local newPos
+    -- Along-wall movement
+    local alongX = wallState.wallRunDir.x * runSpeed * dt
+    local alongY = wallState.wallRunDir.y * runSpeed * dt
+    local baseX = pos.x + alongX
+    local baseY = pos.y + alongY
+
+    -- Lateral position: outward-only correction from wall surface (juts push out, dips ignored)
     if hit then
-        newPos = Vector4.new(
-            hitPos.x + wallState.wallNormal.x * wallDist + moveX,
-            hitPos.y + wallState.wallNormal.y * wallDist + moveY,
-            wallState.targetZ,
-            1
-        )
-    else
-        newPos = Vector4.new(
-            pos.x + moveX,
-            pos.y + moveY,
-            wallState.targetZ,
-            1
-        )
+        local runDist = cfg.targetWallDist
+        local idealX = hitPos.x + wallState.wallNormal.x * runDist
+        local idealY = hitPos.y + wallState.wallNormal.y * runDist
+
+        local nrm = wallState.wallNormal
+        local baseLat  = baseX * nrm.x + baseY * nrm.y
+        local idealLat = idealX * nrm.x + idealY * nrm.y
+
+        -- Only correct if ideal is further from wall (jut pushing us out)
+        if idealLat > baseLat then
+            local shift = idealLat - baseLat
+            baseX = baseX + nrm.x * shift
+            baseY = baseY + nrm.y * shift
+        end
     end
+
+    local newPos = Vector4.new(baseX, baseY, wallState.targetZ, 1)
 
     camera.trackedYaw = camera.trackedYaw - Helpers.consumeAimYaw(dt)
 

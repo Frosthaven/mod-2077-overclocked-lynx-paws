@@ -78,6 +78,10 @@ local wallState = {
     wallLostTimer  = nil,        -- wall-lost grace timer (general)
     airPeakZ       = nil,        -- highest Z reached this airborne period
 
+    -- Pre-sampled wall run path (jut/dip handling)
+    wallPath       = nil,        -- array of {x, y, cumDist} waypoints sampled on entry
+    wallPathDist   = 0,          -- distance traveled along the sampled path
+
     -- Crouch buffer / safe landing
     crouchBuffered    = false,
     crouchBufferTimer = 0,
