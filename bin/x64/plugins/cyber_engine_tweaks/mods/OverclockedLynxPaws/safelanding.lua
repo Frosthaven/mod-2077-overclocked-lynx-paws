@@ -66,6 +66,15 @@ function SafeLanding.triggerSafeRoll()
     end
     wallState.crouchBuffered = false
     wallState.crouchBufferTimer = 0
+    -- Fire a forward impulse so the game engine handles movement
+    local imp = PSMImpulse.new()
+    imp.id = "impulse"
+    local d = wallState.safeRollDir
+    imp.impulse = Vector4.new(
+        d.x * wallState.safeRollSpeed,
+        d.y * wallState.safeRollSpeed,
+        0, 0)
+    wallState.player:QueueEvent(imp)
 end
 
 --- Clear the crouch buffer without triggering a roll (used for short falls).
@@ -116,28 +125,6 @@ function SafeLanding.updateRoll(dt)
                 wallState.safeRollShouldReequip = false
             end
         end
-        -- Decelerate over the roll
-        local spd = wallState.safeRollSpeed * (1.0 - t * 0.5)
-        local moveStep = spd * dt
-        local pos = wallState.player:GetWorldPosition()
-        local d = wallState.safeRollDir
-
-        -- Collision check: raycast forward from hip to avoid walls
-        local origin = Vector4.new(pos.x, pos.y, pos.z + 0.5, 0)
-        local hit, hitPos, hitDist = Helpers.raycast(origin, d, moveStep + 0.3)
-        if hit and hitDist < moveStep + 0.3 then
-            -- Wall ahead — stop forward movement
-            moveStep = math.max(0, hitDist - 0.3)
-        end
-
-        local newPos = Vector4.new(
-            pos.x + d.x * moveStep,
-            pos.y + d.y * moveStep,
-            pos.z, 1)
-        Game.GetTeleportationFacility():Teleport(
-            wallState.player, newPos,
-            EulerAngles.new(0, 0, wallState.safeRollYaw))
-
         -- Camera pitch: 0.1s delay then full 360-degree forward roll
         -- Ease-in-out: slow at start and end, fast in the middle
         local delay = 0.1
@@ -183,15 +170,7 @@ function SafeLanding.updateUncrouch(dt)
             local qs = Game.GetQuestsSystem()
             if qs then qs:SetFact(CName.new("wr_uncrouch"), 1) end
             wallState.safeRollUncrouch = nil
-            wallState.safeRollSprintTimer = 0.3
             Helpers.playSound("ono_v_effort_short")
-        end
-    end
-    -- Sprint after roll disabled for now (PSM event not reliably activating)
-    if wallState.safeRollSprintTimer then
-        wallState.safeRollSprintTimer = wallState.safeRollSprintTimer - dt
-        if wallState.safeRollSprintTimer <= 0 then
-            wallState.safeRollSprintTimer = nil
         end
     end
 end
@@ -199,7 +178,7 @@ end
 --- Clear stale safe roll and uncrouch quest facts after a grace period once all roll state is finished.
 --- @param dt number Delta time in seconds.
 function SafeLanding.updateCleanup(dt)
-    if not wallState.safeRollTimer and not wallState.safeRollUncrouch and not wallState.safeRollSprintTimer then
+    if not wallState.safeRollTimer and not wallState.safeRollUncrouch then
         if not wallState.safeRollCleanupTimer then
             wallState.safeRollCleanupTimer = 0.2  -- give Redscript time to process facts
         else
