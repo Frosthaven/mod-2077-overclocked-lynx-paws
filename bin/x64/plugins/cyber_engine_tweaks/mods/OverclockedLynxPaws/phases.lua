@@ -9,6 +9,7 @@ local Kerenzikov = require("kerenzikov")
 local WallDetect = require("walldetect")
 local SafeLanding = require("safelanding")
 local LynxPawMod = require("lynxpaw")
+local Mantis = require("mantis")
 local Debug = require("debug")
 
 local Phases = {}
@@ -117,6 +118,18 @@ end
 
 --- Shared cleanup for all wall exit paths.
 local function cleanupWallState()
+    if wallState.mantisGrabbed then
+        Mantis.release()
+        wallState.mantisGrabbed = false
+        if wallState.mantisGrabShouldReequip then
+            wallState.mantisGrabShouldReequip = false
+            local equipReq = NewObject("EquipmentSystemWeaponManipulationRequest")
+            equipReq.requestType = EquipmentManipulationAction.ReequipWeapon
+            equipReq.owner = wallState.player
+            Game.GetScriptableSystemsContainer():Get(CName.new("EquipmentSystem")):QueueRequest(equipReq)
+        end
+        wallState.mantisGrabHolstered = nil
+    end
     Kerenzikov.deactivate()
     Helpers.stopSound("lcm_fs_additional_tiles_slide")
     setClimbBlock(false)
@@ -187,7 +200,7 @@ local function isSameWall(wallNormal)
 end
 
 -- Forward declarations for mutual references
-local enterWallClimb, beginLedgeMount, beginWallJump, beginReverseHang, beginExitPush
+local enterWallClimb, beginLedgeMount, beginWallJump, beginReverseHang, beginExitPush, beginMantisGrab, endMantisGrab
 
 local function tryChainWall(kickDir)
     if not cfg.unlimitedWallChains and wallState.chainCount >= cfg.maxWallChains then
@@ -372,6 +385,100 @@ beginExitPush = function(kickDir, kickSpeed)
     wallState.phase = "EXIT_PUSH"
 end
 
+beginMantisGrab = function()
+    local pos = wallState.player:GetWorldPosition()
+    wallState.aimHoldX = pos.x
+    wallState.aimHoldY = pos.y
+    wallState.aimHoldZ = pos.z
+    wallState.phaseTimer = 0
+    wallState.aimDuration = 0.35
+    wallState.aimStartTilt = camera.tilt
+    wallState.lastKickWallNormal = wallState.wallNormal
+    wallState.phase = "MANTIS_GRAB"
+    wallState.mantisGrabbed = true
+
+    -- Camera pan: compute yaw facing wall + 45° exit yaw in run direction
+    wallState.mantisGrabYawWall  = math.deg(math.atan2(wallState.wallNormal.x, -wallState.wallNormal.y))
+    local runDir = wallState.wallRunDir
+    if runDir then
+        -- 45° away from wall in the direction of travel: normalize(wallNormal + runDir)
+        local exitX = wallState.wallNormal.x + runDir.x
+        local exitY = wallState.wallNormal.y + runDir.y
+        local len = math.sqrt(exitX * exitX + exitY * exitY)
+        if len > 0.001 then
+            exitX, exitY = exitX / len, exitY / len
+        end
+        wallState.mantisGrabYawReturn = math.deg(math.atan2(-exitX, exitY))
+    else
+        -- No run direction (e.g. climbing) — face away from wall
+        wallState.mantisGrabYawReturn = math.deg(math.atan2(-wallState.wallNormal.x, wallState.wallNormal.y))
+    end
+    wallState.mantisGrabPanToWall   = 0.12  -- seconds to pan toward wall
+    wallState.mantisGrabPanReturn   = 0.18  -- seconds to pan back
+
+    wallState.wallSide = nil
+    wallState.wallNormal = nil
+    wallState.wallRunDir = nil
+    wallState.timer = 0
+    wallState.cooldown = 0
+    input.meleeJustPressed = false
+
+    Mantis.grab()
+    Helpers.playSound("w_cyb_mantis_impact_metal_heavy")
+    Kerenzikov.pause()
+end
+
+endMantisGrab = function(doJump)
+    Mantis.release()
+    wallState.mantisGrabbed = false
+
+    -- Re-equip weapon if we holstered it
+    if wallState.mantisGrabShouldReequip then
+        wallState.mantisGrabShouldReequip = false
+        local equipReq = NewObject("EquipmentSystemWeaponManipulationRequest")
+        equipReq.requestType = EquipmentManipulationAction.ReequipWeapon
+        equipReq.owner = wallState.player
+        Game.GetScriptableSystemsContainer():Get(CName.new("EquipmentSystem")):QueueRequest(equipReq)
+    end
+    wallState.mantisGrabHolstered = nil
+
+    if doJump then
+        local fwd = Game.GetCameraSystem():GetActiveCameraForward()
+        Helpers.resetCameraRoll()
+
+        local wn = wallState.lastKickWallNormal
+        if wn and not wallState.wallClimbUsedThisJump then
+            local fwdFlat = Vector4.Normalize(Vector4.new(fwd.x, fwd.y, 0, 0))
+            local lookDot = fwdFlat.x * wn.x + fwdFlat.y * wn.y
+            local lookDeg = math.deg(math.acos(math.max(-1, math.min(1, -lookDot))))
+            if lookDot < 0 and lookDeg <= cfg.wallRunEntryAngle then
+                Kerenzikov.deactivate()
+                wallState.aimHoldZ = nil
+                wallState.lastKickWallNormal = nil
+                wallState.climbEntryDeg = lookDeg
+                enterWallClimb(wn)
+                return
+            end
+        end
+
+        local force = cfg.wallKickForce
+        local clampedZ = math.max(-0.3, math.min(0.3, fwd.z))
+        local arcBoost = force * AIM_KICK_ARC_RATIO
+        wallState.kickDirection = nil
+        wallState.aimHoldZ = nil
+        wallState.phase = "IDLE"
+        Kerenzikov.deactivate()
+        Helpers.queueWallKick(Vector4.new(fwd.x * force, fwd.y * force, clampedZ * force + arcBoost, 0))
+        Helpers.stopSound("lcm_player_double_jump")
+        Helpers.playSound("lcm_player_double_jump")
+    else
+        wallState.aimHoldZ = nil
+        wallState.phase = "IDLE"
+        Helpers.resetCameraRoll()
+        Kerenzikov.deactivate()
+    end
+end
+
 ---------------------------------------------------------------------------
 -- Phase handler functions
 ---------------------------------------------------------------------------
@@ -480,6 +587,11 @@ end
 
 local function updateWallRunning(dt, airborne, dashCancel, LynxPaw)
     Kerenzikov.updateADS()
+
+    if input.meleeJustPressed and Mantis.checkEquipped() then
+        beginMantisGrab()
+        return
+    end
 
     if input.pressingBack and input.jumpJustPressed and hasEnoughStamina() then
         beginReverseHang()
@@ -700,6 +812,11 @@ local function updateWallRunning(dt, airborne, dashCancel, LynxPaw)
 end
 
 local function updateWallClimbing(dt, airborne, dashCancel, LynxPaw)
+    if input.meleeJustPressed and Mantis.checkEquipped() then
+        beginMantisGrab()
+        return
+    end
+
     if input.pressingBack and input.jumpJustPressed and hasEnoughStamina() then
         beginReverseHang()
         return
@@ -801,6 +918,12 @@ local function updateWallClimbing(dt, airborne, dashCancel, LynxPaw)
 end
 
 local function updateWallSliding(dt, airborne, dashCancel, LynxPaw)
+    if input.meleeJustPressed and Mantis.checkEquipped() then
+        Helpers.stopSound("lcm_fs_additional_tiles_slide")
+        beginMantisGrab()
+        return
+    end
+
     if input.pressingBack and input.jumpJustPressed and hasEnoughStamina() then
         Helpers.stopSound("lcm_fs_additional_tiles_slide")
         beginReverseHang()
@@ -970,6 +1093,87 @@ local function updateWallJumpAim(dt, airborne, dashCancel, LynxPaw)
         Helpers.queueWallKick(Vector4.new(fwd.x * force, fwd.y * force, clampedZ * force + arcBoost, 0))
         Helpers.stopSound("lcm_player_double_jump")
         Helpers.playSound("lcm_player_double_jump")
+    end
+end
+
+local function updateMantisGrab(dt, airborne, dashCancel, LynxPaw)
+    wallState.phaseTimer = wallState.phaseTimer + dt
+    local aimDuration = wallState.aimDuration or 0.35
+    local panTo = wallState.mantisGrabPanToWall or 0.12
+    local panHold = 0.3
+    local panReturn = wallState.mantisGrabPanReturn or 0.18
+    local panTotal = panTo + panHold + panReturn
+
+    -- Camera pan: to wall, hold, then 45° away from wall in run direction
+    local timer = wallState.phaseTimer
+    if timer < panTo then
+        -- Phase 1: pan toward wall
+        local t = Helpers.smoothstep(timer / panTo)
+        camera.trackedYaw = Helpers.angleLerp(camera.trackedYaw, wallState.mantisGrabYawWall, t)
+    elseif timer < panTo + panHold then
+        -- Phase 2: hold facing wall
+        camera.trackedYaw = wallState.mantisGrabYawWall
+    elseif timer < panTotal then
+        -- Phase 3: pan to 45° away from wall in run direction
+        -- Retract mantis blade and holster weapon as we turn away from the wall
+        if not wallState.mantisGrabHolstered then
+            wallState.mantisGrabHolstered = true
+            Mantis.release()
+            Helpers.playSound("w_cyb_mantis_impact_debris")
+            local ts = Game.GetTransactionSystem()
+            wallState.mantisGrabShouldReequip = ts and (
+                ts:GetItemInSlot(wallState.player, TweakDBID.new("AttachmentSlots.WeaponRight")) ~= nil or
+                ts:GetItemInSlot(wallState.player, TweakDBID.new("AttachmentSlots.WeaponLeft")) ~= nil) or false
+            local holsterReq = NewObject("EquipmentSystemWeaponManipulationRequest")
+            holsterReq.requestType = EquipmentManipulationAction.UnequipWeapon
+            holsterReq.owner = wallState.player
+            Game.GetScriptableSystemsContainer():Get(CName.new("EquipmentSystem")):QueueRequest(holsterReq)
+        end
+        local t = Helpers.smoothstep((timer - panTo - panHold) / panReturn)
+        camera.trackedYaw = Helpers.angleLerp(wallState.mantisGrabYawWall, wallState.mantisGrabYawReturn, t)
+    end
+
+    -- Position lock + yaw control during pan
+    local pos = wallState.player:GetWorldPosition()
+    local useYaw = timer < panTotal and camera.trackedYaw or wallState.player:GetWorldYaw()
+    if math.abs(pos.z - wallState.aimHoldZ) > 0.01
+       or math.abs(pos.x - wallState.aimHoldX) > 0.01
+       or math.abs(pos.y - wallState.aimHoldY) > 0.01
+       or timer < panTotal then
+        Game.GetTeleportationFacility():Teleport(
+            wallState.player,
+            Vector4.new(wallState.aimHoldX, wallState.aimHoldY, wallState.aimHoldZ, 1),
+            EulerAngles.new(0, 0, useYaw)
+        )
+    end
+
+    -- Camera unroll over aimDuration
+    local t = aimDuration > 0 and math.min(1.0, timer / aimDuration) or 1.0
+    camera.tilt = (wallState.aimStartTilt or 0) * (1.0 - t)
+    Helpers.applyCameraRoll(camera.tilt)
+
+    -- Exit: jump → kick off wall
+    if input.jumpJustPressed and timer > 0.1 then
+        endMantisGrab(true)
+        return
+    end
+
+    -- Exit: melee again → drop off wall
+    if input.meleeJustPressed and timer > 0.1 then
+        endMantisGrab(false)
+        return
+    end
+
+    -- Exit: crouch → drop off wall
+    if input.crouchJustPressed then
+        endMantisGrab(false)
+        return
+    end
+
+    -- Exit: weapon switch/equip → drop off wall
+    if input.weaponSwitchJustPressed then
+        endMantisGrab(false)
+        return
     end
 end
 
@@ -1200,6 +1404,7 @@ local phaseHandlers = {
     WALL_SLIDING      = updateWallSliding,
     REVERSE_WALL_HANG = updateReverseWallHang,
     WALL_JUMP_AIM     = updateWallJumpAim,
+    MANTIS_GRAB       = updateMantisGrab,
     WALL_JUMPING      = updateWallJumping,
     AIR_HOVER         = updateAirHover,
     LEDGE_MOUNTING    = updateLedgeMounting,
@@ -1297,6 +1502,9 @@ function Phases.update(dt, syncSettings, LynxPaw)
         if wallState.phase == "EXIT_PUSH" and not wallState.exitPushGrounded then
             wallState.exitPushGrounded = true
             wallState.exitPushLandTime = wallState.phaseTimer
+        end
+        if wallState.phase == "MANTIS_GRAB" then
+            endMantisGrab(false)
         end
         if wallState.phase == "WALL_JUMP_AIM"
            or wallState.phase == "WALL_JUMPING"

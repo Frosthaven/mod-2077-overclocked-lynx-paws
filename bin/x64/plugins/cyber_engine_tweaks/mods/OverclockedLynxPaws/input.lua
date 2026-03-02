@@ -5,6 +5,8 @@ local input = {
     backJustPressed    = false,
     pressingBack       = false,
     pressingSprint     = false,
+    meleeJustPressed   = false,
+    weaponSwitchJustPressed = false,
 }
 
 return input

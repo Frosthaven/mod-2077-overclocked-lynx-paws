@@ -40,10 +40,11 @@ function OverclockedLynxPaws:New()
             end
         end)
 
-        Observe("PlayerPuppet", "OnAction", function(_, action)
-            if not self.loaded then return end
+        Override("PlayerPuppet", "OnAction", function(this, action, wrappedMethod)
+            if not self.loaded then wrappedMethod(action) return end
             local name  = Game.NameToString(action:GetName())
             local atype = action:GetType(action).value
+            local blockAction = false
             if name == "Jump" then
                 if atype == "BUTTON_PRESSED" then
                     input.pressingJump    = true
@@ -72,12 +73,33 @@ function OverclockedLynxPaws:New()
                     input.pressingSprint = false
                 end
             end
+            if name == "MeleeAttack" and atype == "BUTTON_PRESSED" then
+                input.meleeJustPressed = true
+                local phase = wallState.phase
+                if phase == "WALL_RUNNING" or phase == "WALL_CLIMBING"
+                   or phase == "WALL_SLIDING" or phase == "MANTIS_GRAB" then
+                    blockAction = true
+                end
+            end
+            if atype == "BUTTON_PRESSED" and (
+                   name == "WeaponSlot1" or name == "WeaponSlot2"
+                or name == "WeaponSlot3" or name == "WeaponSlot4"
+                or name == "NextWeapon" or name == "PreviousWeapon"
+                or name == "WeaponWheel" or name == "HolsterWeapon"
+                or name == "SwitchItem"
+                or name == "CombatGadget" or name == "UseConsumable") then
+                if wallState.phase == "MANTIS_GRAB" then
+                    input.weaponSwitchJustPressed = true
+                    blockAction = true
+                end
+            end
             -- Capture horizontal aim input for manual yaw tracking
             if name == "CameraMouseX" then
                 camera.pendingMouseDeltaX = camera.pendingMouseDeltaX + action:GetValue(action)
             elseif name == "right_stick_x" then
                 camera.rightStickX = action:GetValue(action)
             end
+            if not blockAction then wrappedMethod(action) end
         end)
 
         -- Hook game climb/vault: trigger our ledge mount during wall phases
@@ -126,6 +148,8 @@ function OverclockedLynxPaws:New()
             self._input.jumpJustPressed = false
             self._input.crouchJustPressed = false
             self._input.backJustPressed = false
+            self._input.meleeJustPressed = false
+            self._input.weaponSwitchJustPressed = false
             self._camera.pendingMouseDeltaX = 0
         end
     end)
@@ -176,6 +200,7 @@ function OverclockedLynxPaws:Setup()
     else
         Helpers.logDebug("[OLP] ERROR: Could not read Shinobi level")
     end
+
 end
 
 return OverclockedLynxPaws:New()
