@@ -5,8 +5,8 @@ local Mantis = {}
 Mantis.equipped = false -- cached equipped state
 
 --- Check whether the player has mantis blades installed in the arms cyberware slot.
---- @return boolean True if mantis blades are equipped.
-function Mantis.checkEquipped()
+--- @return boolean True if mantis blades are installed.
+function Mantis.checkInstalled()
     local ok, result = pcall(function()
         local esPlayerData = Game.GetScriptableSystemsContainer()
             :Get("EquipmentSystem"):GetPlayerData(wallState.player)
@@ -21,6 +21,21 @@ function Mantis.checkEquipped()
             end
         end
         return false
+    end)
+    if ok then return result end
+    return false
+end
+
+--- Check whether mantis blades are the active weapon (installed + no ranged/other melee weapon drawn).
+--- @return boolean True if mantis blades would be used on melee attack.
+function Mantis.checkEquipped()
+    if not Mantis.checkInstalled() then return false end
+    local ok, result = pcall(function()
+        local ts = Game.GetTransactionSystem()
+        local weapon = ts:GetItemInSlot(wallState.player, TweakDBID.new("AttachmentSlots.WeaponRight"))
+        if weapon == nil then return true end
+        local itemType = ts:GetItemData(wallState.player, weapon:GetItemID()):GetItemType()
+        return itemType.value == "Cyb_MantisBlades"
     end)
     if ok then return result end
     return false
