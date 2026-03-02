@@ -56,7 +56,7 @@ function SafeLanding.triggerSafeRoll()
     wallState.safeRollDir = Vector4.Normalize(Vector4.new(fwd.x, fwd.y, 0, 0))
     wallState.safeRollTimer = 0
     wallState.safeRollYaw = wallState.player:GetWorldYaw()
-    wallState.safeRollSoundCountdown = 0.73
+    wallState.safeRollSoundCountdown = 0.58
     Helpers.playSound("q304_sc_09b_songbird_stumbles_tunnel")
     wallState.safeRollMeshIsHidden = false
     local qs = Game.GetQuestsSystem()
