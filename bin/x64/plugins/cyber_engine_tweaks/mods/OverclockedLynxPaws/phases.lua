@@ -121,6 +121,8 @@ local function cleanupWallState()
     if wallState.mantisGrabbed then
         Mantis.release()
         wallState.mantisGrabbed = false
+        Helpers.showCharacterModel()
+        Helpers.showWeaponModel()
         if wallState.mantisGrabShouldReequip then
             wallState.mantisGrabShouldReequip = false
             local equipReq = NewObject("EquipmentSystemWeaponManipulationRequest")
@@ -129,6 +131,7 @@ local function cleanupWallState()
             Game.GetScriptableSystemsContainer():Get(CName.new("EquipmentSystem")):QueueRequest(equipReq)
         end
         wallState.mantisGrabHolstered = nil
+    wallState.mantisGrabMeshHidden = nil
     end
     Kerenzikov.deactivate()
     Helpers.stopSound("lcm_fs_additional_tiles_slide")
@@ -432,7 +435,9 @@ endMantisGrab = function(doJump)
     Mantis.release()
     wallState.mantisGrabbed = false
 
-    -- Re-equip weapon if we holstered it
+    -- Restore player/weapon meshes and re-equip weapon if we holstered it
+    Helpers.showCharacterModel()
+    Helpers.showWeaponModel()
     if wallState.mantisGrabShouldReequip then
         wallState.mantisGrabShouldReequip = false
         local equipReq = NewObject("EquipmentSystemWeaponManipulationRequest")
@@ -441,6 +446,7 @@ endMantisGrab = function(doJump)
         Game.GetScriptableSystemsContainer():Get(CName.new("EquipmentSystem")):QueueRequest(equipReq)
     end
     wallState.mantisGrabHolstered = nil
+    wallState.mantisGrabMeshHidden = nil
 
     if doJump then
         local fwd = Game.GetCameraSystem():GetActiveCameraForward()
@@ -1131,6 +1137,12 @@ local function updateMantisGrab(dt, airborne, dashCancel, LynxPaw)
         end
         local t = Helpers.smoothstep((timer - panTo - panHold) / panReturn)
         camera.trackedYaw = Helpers.angleLerp(wallState.mantisGrabYawWall, wallState.mantisGrabYawReturn, t)
+    end
+
+    -- Hide player/weapon meshes when Phase 3 pan-back begins
+    if not wallState.mantisGrabMeshHidden and timer >= panTo + panHold then
+        wallState.mantisGrabMeshHidden = true
+        Helpers.hideCharacterModel()
     end
 
     -- Position lock + yaw control during pan
