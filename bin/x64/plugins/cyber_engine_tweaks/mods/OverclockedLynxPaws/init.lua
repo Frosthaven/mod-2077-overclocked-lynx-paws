@@ -40,11 +40,10 @@ function OverclockedLynxPaws:New()
             end
         end)
 
-        Override("PlayerPuppet", "OnAction", function(this, action, wrappedMethod)
-            if not self.loaded then wrappedMethod(action) return end
+        Observe("PlayerPuppet", "OnAction", function(_, action)
+            if not self.loaded then return end
             local name  = Game.NameToString(action:GetName())
             local atype = action:GetType(action).value
-            local blockAction = false
             if name == "Jump" then
                 if atype == "BUTTON_PRESSED" then
                     input.pressingJump    = true
@@ -75,11 +74,6 @@ function OverclockedLynxPaws:New()
             end
             if name == "MeleeAttack" and atype == "BUTTON_PRESSED" then
                 input.meleeJustPressed = true
-                local phase = wallState.phase
-                if phase == "WALL_RUNNING" or phase == "WALL_CLIMBING"
-                   or phase == "WALL_SLIDING" or phase == "MANTIS_GRAB" then
-                    blockAction = true
-                end
             end
             if atype == "BUTTON_PRESSED" and (
                    name == "WeaponSlot1" or name == "WeaponSlot2"
@@ -87,10 +81,10 @@ function OverclockedLynxPaws:New()
                 or name == "NextWeapon" or name == "PreviousWeapon"
                 or name == "WeaponWheel" or name == "HolsterWeapon"
                 or name == "SwitchItem"
-                or name == "CombatGadget" or name == "UseConsumable") then
+                or name == "CombatGadget" or name == "UseCombatGadget"
+                or name == "UseConsumable") then
                 if wallState.phase == "MANTIS_GRAB" then
                     input.weaponSwitchJustPressed = true
-                    blockAction = true
                 end
             end
             -- Capture horizontal aim input for manual yaw tracking
@@ -99,7 +93,6 @@ function OverclockedLynxPaws:New()
             elseif name == "right_stick_x" then
                 camera.rightStickX = action:GetValue(action)
             end
-            if not blockAction then wrappedMethod(action) end
         end)
 
         -- Hook game climb/vault: trigger our ledge mount during wall phases

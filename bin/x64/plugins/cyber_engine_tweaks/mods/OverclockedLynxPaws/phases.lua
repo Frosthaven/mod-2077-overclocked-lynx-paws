@@ -426,6 +426,15 @@ beginMantisGrab = function()
     wallState.cooldown = 0
     input.meleeJustPressed = false
 
+    -- Ensure mesh is visible (rare edge case after dropping from a previous grab)
+    Helpers.showCharacterModel()
+    Helpers.showWeaponModel()
+
+    -- Mantis grab doesn't consume a chain — allow the same number of chains after
+    if wallState.chainCount > 0 then
+        wallState.chainCount = wallState.chainCount - 1
+    end
+
     Mantis.grab()
     Helpers.playSound("w_cyb_mantis_impact_metal_heavy")
     Kerenzikov.pause()
@@ -1182,7 +1191,7 @@ local function updateMantisGrab(dt, airborne, dashCancel, LynxPaw)
         return
     end
 
-    -- Exit: weapon switch/equip → drop off wall
+    -- Exit: weapon switch/equip/consumable/gadget → drop off wall
     if input.weaponSwitchJustPressed then
         endMantisGrab(false)
         return
