@@ -40,7 +40,7 @@ function OverclockedLynxPaws:New()
             end
         end)
 
-        Observe("PlayerPuppet", "OnAction", function(_, action)
+        Observe("PlayerPuppet", "OnAction", function(_, action, consumer)
             if not self.loaded then return end
             local name  = Game.NameToString(action:GetName())
             local atype = action:GetType(action).value
@@ -72,8 +72,16 @@ function OverclockedLynxPaws:New()
                     input.pressingSprint = false
                 end
             end
-            if name == "MeleeAttack" and atype == "BUTTON_PRESSED" then
-                input.meleeJustPressed = true
+            local isMeleeAction = name == "MeleeAttack" or name == "MeleeLightAttack"
+                or name == "MeleeHeavyAttack" or name == "QuickMelee"
+            if isMeleeAction then
+                if atype == "BUTTON_PRESSED" then
+                    input.meleeJustPressed = true
+                end
+                -- Consume melee during wall phases to block native attack animation
+                if wallState.phase ~= "IDLE" then
+                    ListenerActionConsumer.Consume(consumer)
+                end
             end
             if atype == "BUTTON_PRESSED" and (
                    name == "WeaponSlot1" or name == "WeaponSlot2"

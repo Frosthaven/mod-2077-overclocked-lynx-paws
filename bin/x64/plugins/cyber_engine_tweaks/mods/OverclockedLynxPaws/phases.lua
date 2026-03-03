@@ -132,6 +132,7 @@ local function cleanupWallState()
         end
         wallState.mantisGrabHolstered = nil
     wallState.mantisGrabMeshHidden = nil
+    wallState.mantisGrabThrust = nil
     end
     Kerenzikov.deactivate()
     Helpers.stopSound("lcm_fs_additional_tiles_slide")
@@ -394,14 +395,15 @@ beginMantisGrab = function()
     wallState.aimHoldY = pos.y
     wallState.aimHoldZ = pos.z
     wallState.phaseTimer = 0
-    wallState.aimDuration = 0.35
+    wallState.aimDuration = 0.50
     wallState.aimStartTilt = camera.tilt
     wallState.lastKickWallNormal = wallState.wallNormal
     wallState.phase = "MANTIS_GRAB"
     wallState.mantisGrabbed = true
 
-    -- Camera pan: compute yaw facing wall + 45° exit yaw in run direction
+    -- Camera pan: compute yaw facing wall, shoulder-peek yaw, + 45° exit yaw in run direction
     wallState.mantisGrabYawWall  = math.deg(math.atan2(wallState.wallNormal.x, -wallState.wallNormal.y))
+    wallState.mantisGrabYawShoulder = wallState.mantisGrabYawWall + 80  -- peek left over shoulder
     local runDir = wallState.wallRunDir
     if runDir then
         -- 45° away from wall in the direction of travel: normalize(wallNormal + runDir)
@@ -416,7 +418,9 @@ beginMantisGrab = function()
         -- No run direction (e.g. climbing) — face away from wall
         wallState.mantisGrabYawReturn = math.deg(math.atan2(-wallState.wallNormal.x, wallState.wallNormal.y))
     end
-    wallState.mantisGrabPanToWall   = 0.12  -- seconds to pan toward wall
+    wallState.mantisGrabPanShoulder = 0.30  -- seconds to peek over shoulder (slow wind-up)
+    wallState.mantisGrabPanThrust   = 0.20  -- seconds to thrust toward wall
+    wallState.mantisGrabPanToWall   = 0.50  -- total Phase 1 duration (shoulder + thrust)
     wallState.mantisGrabPanReturn   = 0.18  -- seconds to pan back
 
     wallState.wallSide = nil
@@ -435,7 +439,6 @@ beginMantisGrab = function()
         wallState.chainCount = wallState.chainCount - 1
     end
 
-    Mantis.grab()
     Helpers.playSound("w_cyb_mantis_impact_metal_heavy")
     Kerenzikov.pause()
 end
@@ -456,6 +459,13 @@ endMantisGrab = function(doJump)
     end
     wallState.mantisGrabHolstered = nil
     wallState.mantisGrabMeshHidden = nil
+    wallState.mantisGrabThrust = nil
+
+    -- Reset FPP camera orientation (clear any residual pitch from shoulder peek)
+    local camComp = wallState.player:GetFPPCameraComponent()
+    if camComp then
+        camComp:SetLocalOrientation(EulerAngles.ToQuat(EulerAngles.new(0, 0, 0)))
+    end
 
     if doJump then
         local fwd = Game.GetCameraSystem():GetActiveCameraForward()
@@ -1113,28 +1123,48 @@ end
 
 local function updateMantisGrab(dt, airborne, dashCancel, LynxPaw)
     wallState.phaseTimer = wallState.phaseTimer + dt
-    local aimDuration = wallState.aimDuration or 0.35
-    local panTo = wallState.mantisGrabPanToWall or 0.12
-    local panHold = 0.3
+    local aimDuration = wallState.aimDuration or 0.50
+    local panShoulder = wallState.mantisGrabPanShoulder or 0.15
+    local panThrust   = wallState.mantisGrabPanThrust or 0.20
+    local panTo = wallState.mantisGrabPanToWall or 0.35
+    local panHold = 0.15
     local panReturn = wallState.mantisGrabPanReturn or 0.18
     local panTotal = panTo + panHold + panReturn
 
-    -- Camera pan: to wall, hold, then 45° away from wall in run direction
+    -- Camera pan: shoulder peek, thrust to wall, hold, then 45° away
     local timer = wallState.phaseTimer
-    if timer < panTo then
-        -- Phase 1: pan toward wall
-        local t = Helpers.smoothstep(timer / panTo)
-        camera.trackedYaw = Helpers.angleLerp(camera.trackedYaw, wallState.mantisGrabYawWall, t)
+    local grabPitch = 0
+    if timer < panShoulder then
+        -- Phase 1a: peek over left shoulder with slight pitch down
+        local t = Helpers.smoothstep(timer / panShoulder)
+        camera.trackedYaw = Helpers.angleLerp(camera.trackedYaw, wallState.mantisGrabYawShoulder, t)
+        grabPitch = -20 * t
+    elseif timer < panTo then
+        -- Phase 1b: thrust toward wall, pitch stays down
+        if not wallState.mantisGrabThrust then
+            wallState.mantisGrabThrust = true
+            Mantis.grab()
+            Helpers.playSound("w_cyb_mantis_impact_debris")
+        end
+        local t = Helpers.smoothstep((timer - panShoulder) / panThrust)
+        camera.trackedYaw = Helpers.angleLerp(wallState.mantisGrabYawShoulder, wallState.mantisGrabYawWall, t)
+        grabPitch = -20
     elseif timer < panTo + panHold then
-        -- Phase 2: hold facing wall
+        -- Phase 2: hold facing wall, pitch returns to 0
         camera.trackedYaw = wallState.mantisGrabYawWall
+        if not wallState.mantisGrabThrust then
+            wallState.mantisGrabThrust = true
+            Mantis.grab()
+            Helpers.playSound("w_cyb_mantis_impact_debris")
+        end
+        local t = Helpers.smoothstep((timer - panTo) / panHold)
+        grabPitch = -20 * (1 - t)
     elseif timer < panTotal then
         -- Phase 3: pan to 45° away from wall in run direction
         -- Retract mantis blade and holster weapon as we turn away from the wall
         if not wallState.mantisGrabHolstered then
             wallState.mantisGrabHolstered = true
             Mantis.release()
-            Helpers.playSound("w_cyb_mantis_impact_debris")
             local ts = Game.GetTransactionSystem()
             wallState.mantisGrabShouldReequip = ts and (
                 ts:GetItemInSlot(wallState.player, TweakDBID.new("AttachmentSlots.WeaponRight")) ~= nil or
@@ -1146,6 +1176,8 @@ local function updateMantisGrab(dt, airborne, dashCancel, LynxPaw)
         end
         local t = Helpers.smoothstep((timer - panTo - panHold) / panReturn)
         camera.trackedYaw = Helpers.angleLerp(wallState.mantisGrabYawWall, wallState.mantisGrabYawReturn, t)
+        -- Pitch scoop: up in the middle, level at start/end (same as reverse hang)
+        grabPitch = RHANG_SCOOP_DEG * math.sin(math.pi * t)
     end
 
     -- Hide player/weapon meshes when Phase 3 pan-back begins
@@ -1168,10 +1200,14 @@ local function updateMantisGrab(dt, airborne, dashCancel, LynxPaw)
         )
     end
 
-    -- Camera unroll over aimDuration
+    -- Camera unroll over aimDuration + shoulder-peek pitch via FPP camera component
     local t = aimDuration > 0 and math.min(1.0, timer / aimDuration) or 1.0
     camera.tilt = (wallState.aimStartTilt or 0) * (1.0 - t)
-    Helpers.applyCameraRoll(camera.tilt)
+    local camComp = wallState.player:GetFPPCameraComponent()
+    if camComp then
+        local quat = EulerAngles.ToQuat(EulerAngles.new(-camera.tilt, grabPitch, 0))
+        camComp:SetLocalOrientation(quat)
+    end
 
     -- Exit: jump → kick off wall
     if input.jumpJustPressed and timer > 0.1 then
