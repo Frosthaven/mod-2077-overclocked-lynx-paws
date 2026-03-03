@@ -402,8 +402,8 @@ beginMantisGrab = function()
     wallState.mantisGrabbed = true
 
     -- Camera pan: compute yaw facing wall, shoulder-peek yaw, + 45° exit yaw in run direction
-    wallState.mantisGrabYawWall  = math.deg(math.atan2(wallState.wallNormal.x, -wallState.wallNormal.y)) - 10  -- slightly right of center
-    wallState.mantisGrabYawShoulder = wallState.mantisGrabYawWall + 80  -- peek left over shoulder
+    wallState.mantisGrabYawWall  = math.deg(math.atan2(wallState.wallNormal.x, -wallState.wallNormal.y)) + 45  -- left of center
+    wallState.mantisGrabYawShoulder = wallState.mantisGrabYawWall + 65  -- peek left over shoulder
     local runDir = wallState.wallRunDir
     if runDir then
         -- 45° away from wall in the direction of travel: normalize(wallNormal + runDir)
@@ -439,6 +439,10 @@ beginMantisGrab = function()
         wallState.chainCount = wallState.chainCount - 1
     end
 
+    -- Start melee attack anim to begin blade extension, will be overridden by grab() a few frames later
+    AnimationControllerComponent.PushEvent(wallState.player, CName.new("Attack"))
+    wallState.mantisGrabAttackFrames = 0
+
     Helpers.playSound("w_cyb_mantis_spy_perk_charged")
     Kerenzikov.pause()
 end
@@ -460,6 +464,7 @@ endMantisGrab = function(doJump)
     wallState.mantisGrabHolstered = nil
     wallState.mantisGrabMeshHidden = nil
     wallState.mantisGrabThrust = nil
+    wallState.mantisGrabAttackFrames = nil
 
     -- Reset FPP camera orientation (clear any residual pitch from shoulder peek)
     local camComp = wallState.player:GetFPPCameraComponent()
@@ -1123,6 +1128,17 @@ end
 
 local function updateMantisGrab(dt, airborne, dashCancel, LynxPaw)
     wallState.phaseTimer = wallState.phaseTimer + dt
+
+    -- After 3 frames of the melee Attack anim (blade extension start), override with our grab
+    if wallState.mantisGrabAttackFrames then
+        wallState.mantisGrabAttackFrames = wallState.mantisGrabAttackFrames + 1
+        if wallState.mantisGrabAttackFrames >= 4 then
+            Mantis.grab()
+            AnimationControllerComponent.PushEvent(wallState.player, CName.new("MeleeNotReady"))
+            wallState.mantisGrabAttackFrames = nil
+        end
+    end
+
     local aimDuration = wallState.aimDuration or 0.50
     local panShoulder = wallState.mantisGrabPanShoulder or 0.15
     local panThrust   = wallState.mantisGrabPanThrust or 0.20

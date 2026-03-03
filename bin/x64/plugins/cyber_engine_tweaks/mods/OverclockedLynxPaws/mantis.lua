@@ -130,6 +130,9 @@ function Mantis.release()
         eqs:QueueRequest(request)
     end)
 
+    -- Clean up melee attack state from blade extension
+    AnimationControllerComponent.PushEvent(player, CName.new("MeleeNotReady"))
+
     -- Reset direct AnimFeatures
     pcall(function()
         local itemHandling = AnimFeature_EquipUnequipItem.new()
