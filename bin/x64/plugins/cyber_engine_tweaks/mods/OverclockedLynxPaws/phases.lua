@@ -439,7 +439,7 @@ beginMantisGrab = function()
         wallState.chainCount = wallState.chainCount - 1
     end
 
-    Helpers.playSound("w_cyb_mantis_impact_metal_heavy")
+    Helpers.playSound("w_cyb_mantis_spy_perk_charged")
     Kerenzikov.pause()
 end
 
@@ -1144,7 +1144,7 @@ local function updateMantisGrab(dt, airborne, dashCancel, LynxPaw)
         if not wallState.mantisGrabThrust then
             wallState.mantisGrabThrust = true
             Mantis.grab()
-            Helpers.playSound("w_cyb_mantis_impact_debris")
+            Helpers.playSound("w_cyb_mantis_impact_metal_heavy")
         end
         local t = Helpers.smoothstep((timer - panShoulder) / panThrust)
         camera.trackedYaw = Helpers.angleLerp(wallState.mantisGrabYawShoulder, wallState.mantisGrabYawWall, t)
@@ -1155,7 +1155,7 @@ local function updateMantisGrab(dt, airborne, dashCancel, LynxPaw)
         if not wallState.mantisGrabThrust then
             wallState.mantisGrabThrust = true
             Mantis.grab()
-            Helpers.playSound("w_cyb_mantis_impact_debris")
+            Helpers.playSound("w_cyb_mantis_impact_metal_heavy")
         end
         local t = Helpers.smoothstep((timer - panTo) / panHold)
         grabPitch = -20 * (1 - t)
@@ -1186,16 +1186,32 @@ local function updateMantisGrab(dt, airborne, dashCancel, LynxPaw)
         Helpers.hideCharacterModel()
     end
 
+    -- Vertical dip: drop at start, hold low through thrust, rise after thrust
+    local GRAB_DIP = 0.35  -- meters to dip down
+    local grabZOffset = 0
+    if timer < panShoulder then
+        -- Drop down quickly at the start
+        grabZOffset = -GRAB_DIP * Helpers.smoothstep(timer / panShoulder)
+    elseif timer < panTo then
+        -- Stay low during thrust
+        grabZOffset = -GRAB_DIP
+    elseif timer < panTo + panHold then
+        -- Rise back up after thrust
+        local t = Helpers.smoothstep((timer - panTo) / panHold)
+        grabZOffset = -GRAB_DIP * (1 - t)
+    end
+
     -- Position lock + yaw control during pan
     local pos = wallState.player:GetWorldPosition()
+    local holdZ = wallState.aimHoldZ + grabZOffset
     local useYaw = timer < panTotal and camera.trackedYaw or wallState.player:GetWorldYaw()
-    if math.abs(pos.z - wallState.aimHoldZ) > 0.01
+    if math.abs(pos.z - holdZ) > 0.01
        or math.abs(pos.x - wallState.aimHoldX) > 0.01
        or math.abs(pos.y - wallState.aimHoldY) > 0.01
        or timer < panTotal then
         Game.GetTeleportationFacility():Teleport(
             wallState.player,
-            Vector4.new(wallState.aimHoldX, wallState.aimHoldY, wallState.aimHoldZ, 1),
+            Vector4.new(wallState.aimHoldX, wallState.aimHoldY, holdZ, 1),
             EulerAngles.new(0, 0, useYaw)
         )
     end

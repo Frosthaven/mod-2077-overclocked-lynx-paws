@@ -153,6 +153,7 @@ function OverclockedLynxPaws:New()
             self._input.weaponSwitchJustPressed = false
             self._camera.pendingMouseDeltaX = 0
         end
+
     end)
 
     registerForEvent("onDraw", function()
@@ -201,6 +202,7 @@ function OverclockedLynxPaws:Setup()
     else
         Helpers.logDebug("[OLP] ERROR: Could not read Shinobi level")
     end
+
 
 end
 

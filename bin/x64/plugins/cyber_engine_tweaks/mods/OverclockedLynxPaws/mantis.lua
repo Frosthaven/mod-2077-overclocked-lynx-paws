@@ -41,6 +41,42 @@ function Mantis.checkEquipped()
     return false
 end
 
+--- Bring out / unholster mantis blades (equip only, no attack animation).
+--- Call at the very start of the mantis grab sequence so blades are visible immediately.
+function Mantis.equip()
+    local player = wallState.player or Game.GetPlayer()
+    if not player then return end
+
+    pcall(function()
+        local eqs = Game.GetScriptableSystemsContainer():Get("EquipmentSystem")
+        local request = EquipmentSystemWeaponManipulationRequest.new()
+        request.owner = player
+        request.requestType = Enum.new("EquipmentManipulationAction", "RequestLeftHandCyberware")
+        eqs:QueueRequest(request)
+    end)
+
+    pcall(function()
+        local itemHandling = AnimFeature_EquipUnequipItem.new()
+        itemHandling.itemType = 2
+        itemHandling.itemState = 2
+        AnimationControllerComponent.ApplyFeature(player, CName.new("leftHandItemHandling"), itemHandling)
+
+        local leftHandItem = AnimFeature_LeftHandItem.new()
+        leftHandItem.itemInLeftHand = true
+        AnimationControllerComponent.ApplyFeature(player, CName.new("LeftHandItem"), leftHandItem)
+
+        local leftHandAnim = AnimFeature_LeftHandAnimation.new()
+        leftHandAnim.lockLeftHandAnimation = true
+        AnimationControllerComponent.ApplyFeature(player, CName.new("LeftHandAnimation"), leftHandAnim)
+
+        local cwFeature = AnimFeature_LeftHandCyberware.new()
+        cwFeature.state = 4  -- Equip state
+        cwFeature.isQuickAction = false
+        cwFeature.actionDuration = 0.5
+        AnimationControllerComponent.ApplyFeature(player, CName.new("LeftHandCyberware"), cwFeature)
+    end)
+end
+
 --- Trigger mantis blade wall-grab animation (arms extend outward).
 --- Uses both EquipmentSystem request and direct AnimFeatures for reliability.
 function Mantis.grab()
