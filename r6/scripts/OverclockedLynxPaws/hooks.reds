@@ -91,6 +91,24 @@ protected func OnUpdate(timeDelta: Float, stateContext: ref<StateContext>, scrip
     wrappedMethod(timeDelta, stateContext, scriptInterface);
 }
 
+// ── Block arm cyberware equip/unequip during wall phases (Cyberware-EX compatibility) ──
+// Prevents Cyberware-EX from activating other arm implants (rockets, gorilla arms, monowire)
+// when melee is pressed during wall running. Our mantis grab uses direct AnimFeatures instead.
+
+@wrapMethod(EquipmentSystem)
+private final func OnEquipmentSystemWeaponManipulationRequest(request: ref<EquipmentSystemWeaponManipulationRequest>) -> Void {
+    let owner = request.owner as PlayerPuppet;
+    if IsDefined(owner) {
+        if GameInstance.GetQuestsSystem(owner.GetGame()).GetFact(n"wr_wall_active") > 0 {
+            let action = request.requestType;
+            if Equals(action, EquipmentManipulationAction.RequestLeftHandCyberware) || Equals(action, EquipmentManipulationAction.UnequipLeftHandCyberware) {
+                return;
+            }
+        }
+    }
+    wrappedMethod(request);
+}
+
 // ── Safe Landing: downgrade hard/death landings to regular when crouch buffer is active ──
 
 @wrapMethod(LocomotionAirEvents)
