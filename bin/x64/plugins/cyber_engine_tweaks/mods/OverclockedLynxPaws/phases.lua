@@ -402,7 +402,7 @@ beginMantisGrab = function()
     wallState.mantisGrabbed = true
 
     -- Camera pan: compute yaw facing wall, shoulder-peek yaw, + 45° exit yaw in run direction
-    wallState.mantisGrabYawWall  = math.deg(math.atan2(wallState.wallNormal.x, -wallState.wallNormal.y))
+    wallState.mantisGrabYawWall  = math.deg(math.atan2(wallState.wallNormal.x, -wallState.wallNormal.y)) - 10  -- slightly right of center
     wallState.mantisGrabYawShoulder = wallState.mantisGrabYawWall + 80  -- peek left over shoulder
     local runDir = wallState.wallRunDir
     if runDir then
