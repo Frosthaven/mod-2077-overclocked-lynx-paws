@@ -84,6 +84,17 @@ function Helpers.raycast(origin, direction, distance)
     return false, nil, 999
 end
 
+--- Spawn a wall impact VFX at the given world position using FxSystem.
+--- @param position Vector4 World-space position for the effect.
+function Helpers.spawnWallImpactVFX(position)
+    pcall(function()
+        local fxResource = gameFxResource.new({ effect = "base\\fx\\quest\\q101\\q101_06c_memories_p2\\q101_impact_concrete.effect" })
+        local transform = WorldTransform.new()
+        transform:SetPosition(position)
+        Game.GetFxSystem():SpawnEffect(fxResource, transform)
+    end)
+end
+
 --- Queue a sound play event on the player entity.
 --- @param name string The sound event name to play.
 function Helpers.playSound(name)

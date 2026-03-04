@@ -1161,6 +1161,16 @@ local function updateMantisGrab(dt, airborne, dashCancel, LynxPaw)
             wallState.mantisGrabThrust = true
             Mantis.grab()
             Helpers.playSound("w_cyb_mantis_impact_metal_heavy")
+            local wn = wallState.wallNormal or wallState.lastKickWallNormal
+            if wn then
+                -- Left along wall = cross(wallNormal, up)
+                local leftX, leftY = wn.y, -wn.x
+                local vfxPos = Vector4.new(
+                    wallState.aimHoldX - wn.x * 0.5 + leftX * 0.5,
+                    wallState.aimHoldY - wn.y * 0.5 + leftY * 0.5,
+                    wallState.aimHoldZ + 1.2, 0)
+                Helpers.spawnWallImpactVFX(vfxPos)
+            end
         end
         local t = Helpers.smoothstep((timer - panShoulder) / panThrust)
         camera.trackedYaw = Helpers.angleLerp(wallState.mantisGrabYawShoulder, wallState.mantisGrabYawWall, t)
@@ -1172,6 +1182,16 @@ local function updateMantisGrab(dt, airborne, dashCancel, LynxPaw)
             wallState.mantisGrabThrust = true
             Mantis.grab()
             Helpers.playSound("w_cyb_mantis_impact_metal_heavy")
+            local wn = wallState.wallNormal or wallState.lastKickWallNormal
+            if wn then
+                -- Left along wall = cross(wallNormal, up)
+                local leftX, leftY = wn.y, -wn.x
+                local vfxPos = Vector4.new(
+                    wallState.aimHoldX - wn.x * 0.5 + leftX * 0.5,
+                    wallState.aimHoldY - wn.y * 0.5 + leftY * 0.5,
+                    wallState.aimHoldZ + 1.2, 0)
+                Helpers.spawnWallImpactVFX(vfxPos)
+            end
         end
         local t = Helpers.smoothstep((timer - panTo) / panHold)
         grabPitch = -20 * (1 - t)
