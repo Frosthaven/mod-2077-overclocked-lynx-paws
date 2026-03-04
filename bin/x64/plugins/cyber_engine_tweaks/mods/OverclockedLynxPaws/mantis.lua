@@ -41,6 +41,22 @@ function Mantis.checkEquipped()
     return false
 end
 
+--- Reset any residual melee/combo animation state so the next Attack starts clean.
+function Mantis.resetMeleeState()
+    local player = wallState.player or Game.GetPlayer()
+    if not player then return end
+    pcall(function()
+        AnimationControllerComponent.PushEvent(player, CName.new("MeleeNotReady"))
+        local meleeSlot = AnimFeature_MeleeSlotData.new()
+        meleeSlot.attackType = 0
+        meleeSlot.comboNumber = 0
+        meleeSlot.startupDuration = 0
+        meleeSlot.activeDuration = 0
+        meleeSlot.recoverDuration = 0
+        AnimationControllerComponent.ApplyFeature(player, CName.new("MeleeSlotData"), meleeSlot)
+    end)
+end
+
 --- Trigger mantis blade wall-grab animation (arms extend outward).
 --- Uses direct AnimFeatures to control the animation graph.
 function Mantis.grab()

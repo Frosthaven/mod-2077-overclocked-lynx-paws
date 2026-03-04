@@ -439,8 +439,8 @@ beginMantisGrab = function()
         wallState.chainCount = wallState.chainCount - 1
     end
 
-    -- Start melee attack anim to begin blade extension, will be overridden by grab() a few frames later
-    AnimationControllerComponent.PushEvent(wallState.player, CName.new("Attack"))
+    -- Clear any residual melee/combo state before starting blade extension
+    Mantis.resetMeleeState()
     wallState.mantisGrabAttackFrames = 0
 
     Helpers.playSound("w_cyb_mantis_spy_perk_charged")
@@ -449,6 +449,7 @@ end
 
 endMantisGrab = function(doJump)
     Mantis.release()
+    Mantis.resetMeleeState()
     wallState.mantisGrabbed = false
 
     -- Restore player/weapon meshes and re-equip weapon if we holstered it
@@ -1129,10 +1130,13 @@ end
 local function updateMantisGrab(dt, airborne, dashCancel, LynxPaw)
     wallState.phaseTimer = wallState.phaseTimer + dt
 
-    -- After 3 frames of the melee Attack anim (blade extension start), override with our grab
+    -- Frame sequencing: MeleeNotReady (frame 0) -> Attack (frame 2) -> grab override (frame 6)
+    -- The delay between MeleeNotReady and Attack lets the anim graph clear residual melee state
     if wallState.mantisGrabAttackFrames then
         wallState.mantisGrabAttackFrames = wallState.mantisGrabAttackFrames + 1
-        if wallState.mantisGrabAttackFrames >= 4 then
+        if wallState.mantisGrabAttackFrames == 2 then
+            AnimationControllerComponent.PushEvent(wallState.player, CName.new("Attack"))
+        elseif wallState.mantisGrabAttackFrames >= 6 then
             Mantis.grab()
             AnimationControllerComponent.PushEvent(wallState.player, CName.new("MeleeNotReady"))
             wallState.mantisGrabAttackFrames = nil
