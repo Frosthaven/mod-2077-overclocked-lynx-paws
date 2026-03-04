@@ -221,6 +221,7 @@ function WallDetect.qualifyWallAction(vel)
                    and wallState.cooldown > cfg.exitCooldown and Helpers.meetsMinimumSpeed()
     -- Wall climb gates
     local canClimb = not wallState.wallClimbUsedThisJump and wallState.airborneTime > 0.1
+                     and (Helpers.meetsMinimumSpeed() or input.pressingSprint)
     if not canRun and not canClimb then
         Helpers.logDebug(string.format("[Qualify] BLOCKED: canRun=%s canClimb=%s usedJump=%s airborne=%.2f cooldown=%.2f exitCD=%.2f usedClimb=%s",
             tostring(canRun), tostring(canClimb), tostring(wallState.wallRunUsedThisJump), wallState.airborneTime, wallState.cooldown, cfg.exitCooldown, tostring(wallState.wallClimbUsedThisJump)))
