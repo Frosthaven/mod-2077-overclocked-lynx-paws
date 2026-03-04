@@ -1127,6 +1127,23 @@ local function updateWallJumpAim(dt, airborne, dashCancel, LynxPaw)
     end
 end
 
+--- Fire mantis grab + impact sound + wall VFX (once per grab, guarded by mantisGrabThrust flag).
+local function doMantisThrust()
+    if wallState.mantisGrabThrust then return end
+    wallState.mantisGrabThrust = true
+    Mantis.grab()
+    Helpers.playSound("w_cyb_mantis_impact_metal_heavy")
+    local wn = wallState.wallNormal or wallState.lastKickWallNormal
+    if wn then
+        local leftX, leftY = wn.y, -wn.x
+        local vfxPos = Vector4.new(
+            wallState.aimHoldX - wn.x * 0.5 + leftX * 0.5,
+            wallState.aimHoldY - wn.y * 0.5 + leftY * 0.5,
+            wallState.aimHoldZ + 1.2, 0)
+        Helpers.spawnWallImpactVFX(vfxPos)
+    end
+end
+
 local function updateMantisGrab(dt, airborne, dashCancel, LynxPaw)
     wallState.phaseTimer = wallState.phaseTimer + dt
 
@@ -1161,42 +1178,14 @@ local function updateMantisGrab(dt, airborne, dashCancel, LynxPaw)
         grabPitch = -20 * t
     elseif timer < panTo then
         -- Phase 1b: thrust toward wall, pitch stays down
-        if not wallState.mantisGrabThrust then
-            wallState.mantisGrabThrust = true
-            Mantis.grab()
-            Helpers.playSound("w_cyb_mantis_impact_metal_heavy")
-            local wn = wallState.wallNormal or wallState.lastKickWallNormal
-            if wn then
-                -- Left along wall = cross(wallNormal, up)
-                local leftX, leftY = wn.y, -wn.x
-                local vfxPos = Vector4.new(
-                    wallState.aimHoldX - wn.x * 0.5 + leftX * 0.5,
-                    wallState.aimHoldY - wn.y * 0.5 + leftY * 0.5,
-                    wallState.aimHoldZ + 1.2, 0)
-                Helpers.spawnWallImpactVFX(vfxPos)
-            end
-        end
+        doMantisThrust()
         local t = Helpers.smoothstep((timer - panShoulder) / panThrust)
         camera.trackedYaw = Helpers.angleLerp(wallState.mantisGrabYawShoulder, wallState.mantisGrabYawWall, t)
         grabPitch = -20
     elseif timer < panTo + panHold then
         -- Phase 2: hold facing wall, pitch returns to 0
         camera.trackedYaw = wallState.mantisGrabYawWall
-        if not wallState.mantisGrabThrust then
-            wallState.mantisGrabThrust = true
-            Mantis.grab()
-            Helpers.playSound("w_cyb_mantis_impact_metal_heavy")
-            local wn = wallState.wallNormal or wallState.lastKickWallNormal
-            if wn then
-                -- Left along wall = cross(wallNormal, up)
-                local leftX, leftY = wn.y, -wn.x
-                local vfxPos = Vector4.new(
-                    wallState.aimHoldX - wn.x * 0.5 + leftX * 0.5,
-                    wallState.aimHoldY - wn.y * 0.5 + leftY * 0.5,
-                    wallState.aimHoldZ + 1.2, 0)
-                Helpers.spawnWallImpactVFX(vfxPos)
-            end
-        end
+        doMantisThrust()
         local t = Helpers.smoothstep((timer - panTo) / panHold)
         grabPitch = -20 * (1 - t)
     elseif timer < panTotal then

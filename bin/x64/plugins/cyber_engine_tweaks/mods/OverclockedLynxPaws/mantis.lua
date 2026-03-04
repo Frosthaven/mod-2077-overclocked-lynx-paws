@@ -92,9 +92,6 @@ function Mantis.release()
     local player = wallState.player or Game.GetPlayer()
     if not player then return end
 
-    -- Clean up melee attack state from blade extension
-    AnimationControllerComponent.PushEvent(player, CName.new("MeleeNotReady"))
-
     -- Reset direct AnimFeatures
     pcall(function()
         local itemHandling = AnimFeature_EquipUnequipItem.new()
