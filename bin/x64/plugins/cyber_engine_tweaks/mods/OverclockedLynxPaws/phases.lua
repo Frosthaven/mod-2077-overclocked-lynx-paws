@@ -534,7 +534,10 @@ local function updateIdle(dt, airborne, dashCancel, LynxPaw)
             local side, sideRayDir, sideDist, sideHitPos = WallDetect.detectWall()
             if side and sideDist < cfg.wallDetectDistance then
                 local wallN = WallDetect.calculateWallNormal(Helpers.getPlayerHipPosition(), sideHitPos)
-                if not isSameWall(wallN) then
+                -- Reject walls behind the player's look direction
+                local fwd = Game.GetCameraSystem():GetActiveCameraForward()
+                local lookDot = fwd.x * wallN.x + fwd.y * wallN.y
+                if not isSameWall(wallN) and lookDot < 0 then
                     wallState.chainScanTimer = nil
                     wallState.chainScanDirection = nil
                     wallState.chainCount = wallState.chainCount + 1

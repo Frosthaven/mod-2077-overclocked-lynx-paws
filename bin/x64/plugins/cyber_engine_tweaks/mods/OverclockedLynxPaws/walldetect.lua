@@ -181,6 +181,12 @@ function WallDetect.classifyWallAction(vel)
     end
 
     local velDot = velFlat.x * wallN.x + velFlat.y * wallN.y
+    -- Reject walls behind the player's look direction (back hemisphere)
+    local lookDotWall = fwdFlat.x * wallN.x + fwdFlat.y * wallN.y
+    if lookDotWall >= 0 then
+        Helpers.logDebug(string.format("[WallAction] RUN rejected: wall behind camera (lookDot=%.3f)", lookDotWall))
+        return nil
+    end
     local approachDeg = math.deg(math.acos(math.max(-1, math.min(1, math.abs(velDot)))))
     Helpers.logDebug(string.format("[WallAction] RUN check: approachDeg=%.1f velDot=%.3f threshold=%.1f",
         approachDeg, velDot, cfg.wallRunEntryAngle))
