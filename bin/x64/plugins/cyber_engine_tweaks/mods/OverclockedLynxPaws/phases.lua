@@ -132,6 +132,7 @@ local function cleanupWallState()
         end
         wallState.mantisGrabHolstered = nil
     wallState.mantisGrabMeshHidden = nil
+    wallState.mantisGrabHideDelay = nil
     wallState.mantisGrabThrust = nil
     end
     Kerenzikov.deactivate()
@@ -464,6 +465,7 @@ endMantisGrab = function(doJump)
     end
     wallState.mantisGrabHolstered = nil
     wallState.mantisGrabMeshHidden = nil
+    wallState.mantisGrabHideDelay = nil
     wallState.mantisGrabThrust = nil
     wallState.mantisGrabAttackFrames = nil
 
@@ -1212,10 +1214,14 @@ local function updateMantisGrab(dt, airborne, dashCancel, LynxPaw)
         grabPitch = RHANG_SCOOP_DEG * math.sin(math.pi * t)
     end
 
-    -- Hide player/weapon meshes when Phase 3 pan-back begins
+    -- Hide player/weapon meshes shortly after Phase 3 pan-back begins (2-frame delay)
     if not wallState.mantisGrabMeshHidden and timer >= panTo + panHold then
-        wallState.mantisGrabMeshHidden = true
-        Helpers.hideCharacterModel()
+        wallState.mantisGrabHideDelay = (wallState.mantisGrabHideDelay or 0) + 1
+        if wallState.mantisGrabHideDelay >= 3 then
+            wallState.mantisGrabMeshHidden = true
+            wallState.mantisGrabHideDelay = nil
+            Helpers.hideCharacterModel()
+        end
     end
 
     -- Vertical dip: drop at start, hold low through thrust, rise after thrust

@@ -88,10 +88,13 @@ end
 --- @param position Vector4 World-space position for the effect.
 function Helpers.spawnWallImpactVFX(position)
     pcall(function()
-        local fxResource = gameFxResource.new({ effect = "base\\fx\\quest\\q101\\q101_06c_memories_p2\\q101_impact_concrete.effect" })
+        local fxSystem = Game.GetFxSystem()
         local transform = WorldTransform.new()
         transform:SetPosition(position)
-        Game.GetFxSystem():SpawnEffect(fxResource, transform)
+        fxSystem:SpawnEffect(gameFxResource.new({ effect = "base\\fx\\quest\\q101\\q101_06c_memories_p2\\q101_impact_concrete.effect" }), transform)
+        fxSystem:SpawnEffect(gameFxResource.new({ effect = "base\\fx\\weapons\\impacts\\concrete\\large_cal\\imp_concrete_refl_lc.effect" }), transform)
+        fxSystem:SpawnEffect(gameFxResource.new({ effect = "base\\fx\\weapons\\tech\\_impacts\\piercing\\t_impact_concrete_piercing.effect" }), transform)
+        fxSystem:SpawnEffect(gameFxResource.new({ effect = "base\\fx\\weapons\\impacts\\_common\\power\\imp_power_default_piercing_decal.effect" }), transform)
     end)
 end
 
