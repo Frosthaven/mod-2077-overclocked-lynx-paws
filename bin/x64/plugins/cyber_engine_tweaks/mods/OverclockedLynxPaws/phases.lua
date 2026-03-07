@@ -351,7 +351,7 @@ beginWallJump = function(skipSound)
     wallState.suppressStaminaRegen = cfg.drainStamina
     Kerenzikov.pause()
     wallState.phaseTimer       = 0
-    wallState.aimDuration    = 0.35
+    wallState.aimDuration    = cfg.wallKickAimHold
     wallState.aimStartTilt   = camera.tilt
     wallState.lastKickWallNormal  = wallState.wallNormal
     wallState.phase         = "WALL_JUMP_AIM"
