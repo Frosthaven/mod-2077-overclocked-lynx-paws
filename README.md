@@ -4,6 +4,16 @@ Adds wall running, wall climbing, wall kick chaining, and Kerenzikov integration
 to Cyberpunk 2077. Installable and documented via
 [NexusMods](https://www.nexusmods.com/cyberpunk2077/mods/27692).
 
+## Requirements
+
+- [Cyber Engine Tweaks (CET)](https://www.nexusmods.com/cyberpunk2077/mods/107)
+- [RED4ext](https://www.nexusmods.com/cyberpunk2077/mods/2380)
+- [Redscript](https://www.nexusmods.com/cyberpunk2077/mods/1511)
+- [Codeware](https://www.nexusmods.com/cyberpunk2077/mods/7780)
+- [ArchiveXL](https://www.nexusmods.com/cyberpunk2077/mods/4198)
+- [TweakXL](https://www.nexusmods.com/cyberpunk2077/mods/4197)
+- [Mod Settings](https://www.nexusmods.com/cyberpunk2077/mods/4885)
+
 ## Development Setup
 
 The repo mirrors the Cyberpunk 2077 directory structure. A
