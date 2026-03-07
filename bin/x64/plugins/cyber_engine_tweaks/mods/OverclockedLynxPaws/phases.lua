@@ -1178,6 +1178,36 @@ end
 local function updateMantisGrab(dt, airborne, dashCancel, LynxPaw)
     wallState.phaseTimer = wallState.phaseTimer + dt
 
+    -- Exit: jump → kick off wall
+    if input.jumpJustPressed and wallState.phaseTimer > 0.1 then
+        endMantisGrab(true)
+        return
+    end
+
+    -- Exit: melee again → drop off wall
+    if input.meleeJustPressed and wallState.phaseTimer > 0.1 then
+        endMantisGrab(false)
+        return
+    end
+
+    -- Exit: crouch → drop off wall
+    if input.crouchJustPressed then
+        endMantisGrab(false)
+        return
+    end
+
+    -- Exit: weapon switch/equip/consumable/gadget → drop off wall
+    if input.weaponSwitchJustPressed then
+        endMantisGrab(false)
+        return
+    end
+
+    -- Safety timeout: prevent permanent stuck state (skip if unlimited hangtime)
+    if not cfg.unlimitedHangtime and wallState.phaseTimer > 30 then
+        endMantisGrab(false)
+        return
+    end
+
     -- Time-based sequencing: MeleeNotReady (t=0) -> Attack (t>=0.033s) -> grab override (t>=0.100s)
     -- The delays give the anim graph time to process each state change regardless of FPS
     if wallState.mantisGrabAttackTimer then
@@ -1287,29 +1317,6 @@ local function updateMantisGrab(dt, airborne, dashCancel, LynxPaw)
         camComp:SetLocalOrientation(quat)
     end
 
-    -- Exit: jump → kick off wall
-    if input.jumpJustPressed and timer > 0.1 then
-        endMantisGrab(true)
-        return
-    end
-
-    -- Exit: melee again → drop off wall
-    if input.meleeJustPressed and timer > 0.1 then
-        endMantisGrab(false)
-        return
-    end
-
-    -- Exit: crouch → drop off wall
-    if input.crouchJustPressed then
-        endMantisGrab(false)
-        return
-    end
-
-    -- Exit: weapon switch/equip/consumable/gadget → drop off wall
-    if input.weaponSwitchJustPressed then
-        endMantisGrab(false)
-        return
-    end
 end
 
 local function updateWallJumping(dt, airborne, dashCancel, LynxPaw)
