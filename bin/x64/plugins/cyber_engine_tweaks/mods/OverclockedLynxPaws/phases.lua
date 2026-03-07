@@ -444,6 +444,12 @@ beginMantisGrab = function()
     Mantis.resetMeleeState()
     wallState.mantisGrabAttackTimer = 0
 
+    -- Restore stamina to full on mantis grab
+    local sps = Game.GetStatPoolsSystem()
+    if sps then
+        sps:RequestChangingStatPoolValue(wallState.player:GetEntityID(), gamedataStatPoolType.Stamina, 50, nil, false, false)
+    end
+
     Helpers.playSound("w_cyb_mantis_spy_perk_charged")
     Kerenzikov.pause()
 end
