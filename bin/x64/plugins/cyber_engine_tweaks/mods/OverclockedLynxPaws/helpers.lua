@@ -247,16 +247,11 @@ end
 --- @param dt number Delta time in seconds.
 --- @return number The computed yaw delta in degrees.
 function Helpers.consumeAimYaw(dt)
-    local ss = Game.GetSettingsSystem()
-
-    -- Mouse: raw pixel delta × game mouse sensitivity × conversion factor
-    -- At default sensitivity (15), 0.005 * 15 = 0.075 deg/pixel (matches native feel)
-    local mouseVar = ss:GetVar("/controls/fppcameramouse", "FPP_MouseX")
-    local mouseSens = mouseVar and mouseVar:GetValue() or 15
-    local mouseYaw = camera.pendingMouseDeltaX * mouseSens * 0.005
+    -- Mouse: CameraMouseX is already sensitivity-adjusted by the game, just convert to degrees
+    local mouseYaw = camera.pendingMouseDeltaX * 0.075
 
     -- Controller: analog -1..1 × game pad sensitivity × deg/sec rate × dt
-    -- At default sensitivity (15), 15 * 10.0 = 150 deg/sec at full stick
+    local ss = Game.GetSettingsSystem()
     local padVar = ss:GetVar("/controls/fppcamerapad", "FPP_PadX")
     local padSens = padVar and padVar:GetValue() or 15
     local padYaw = camera.rightStickX * padSens * 10.0 * dt
