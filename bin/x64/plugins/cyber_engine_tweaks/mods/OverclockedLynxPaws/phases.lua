@@ -812,6 +812,7 @@ local function updateWallRunning(dt, airborne, dashCancel, LynxPaw)
 
     local newPos = Vector4.new(baseX, baseY, wallState.targetZ, 1)
 
+    Helpers.queueImpulse(Vector4.new(0, 0, 0, 0))
     camera.trackedYaw = camera.trackedYaw - Helpers.consumeAimYaw(dt)
 
     Game.GetTeleportationFacility():Teleport(
@@ -952,6 +953,7 @@ local function updateWallClimbing(dt, airborne, dashCancel, LynxPaw)
         return
     end
 
+    Helpers.queueImpulse(Vector4.new(0, 0, 0, 0))
     camera.trackedYaw = camera.trackedYaw - Helpers.consumeAimYaw(dt)
 
     Game.GetTeleportationFacility():Teleport(
@@ -1029,6 +1031,7 @@ local function updateWallSliding(dt, airborne, dashCancel, LynxPaw)
         1
     )
 
+    Helpers.queueImpulse(Vector4.new(0, 0, 0, 0))
     camera.trackedYaw = camera.trackedYaw - Helpers.consumeAimYaw(dt)
 
     Game.GetTeleportationFacility():Teleport(
@@ -1092,19 +1095,15 @@ local function updateWallJumpAim(dt, airborne, dashCancel, LynxPaw)
         wallState.aimHoldX = pos.x
         wallState.aimHoldY = pos.y
     end
-    -- Zero velocity each frame to prevent gravity from building momentum between teleports
-    Helpers.queueImpulse(Vector4.new(0, 0, 0, 0))
-    if math.abs(pos.z - wallState.aimHoldZ) > 0.01
-       or math.abs(pos.x - wallState.aimHoldX) > 0.01
-       or math.abs(pos.y - wallState.aimHoldY) > 0.01 then
-        Game.GetTeleportationFacility():Teleport(
-            wallState.player,
-            Vector4.new(wallState.aimHoldX, wallState.aimHoldY, wallState.aimHoldZ, 1),
-            EulerAngles.new(0, 0, wallState.player:GetWorldYaw())
-        )
-    end
+    camera.trackedYaw = camera.trackedYaw - Helpers.consumeAimYaw(dt)
+    Game.GetTeleportationFacility():Teleport(
+        wallState.player,
+        Vector4.new(wallState.aimHoldX, wallState.aimHoldY, wallState.aimHoldZ, 1),
+        EulerAngles.new(0, 0, camera.trackedYaw)
+    )
 
-    local t = aimDuration > 0 and math.min(1.0, wallState.phaseTimer / aimDuration) or 1.0
+    local UNROLL_DURATION = 0.35
+    local t = math.min(1.0, wallState.phaseTimer / UNROLL_DURATION)
     camera.tilt = (wallState.aimStartTilt or 0) * (1.0 - t)
     Helpers.applyCameraRoll(camera.tilt)
 
