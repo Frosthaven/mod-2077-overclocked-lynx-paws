@@ -1102,7 +1102,7 @@ local function updateWallJumpAim(dt, airborne, dashCancel, LynxPaw)
         EulerAngles.new(0, 0, camera.trackedYaw)
     )
 
-    local UNROLL_DURATION = 0.35
+    local UNROLL_DURATION = 0.25
     local t = math.min(1.0, wallState.phaseTimer / UNROLL_DURATION)
     camera.tilt = (wallState.aimStartTilt or 0) * (1.0 - t)
     Helpers.applyCameraRoll(camera.tilt)
