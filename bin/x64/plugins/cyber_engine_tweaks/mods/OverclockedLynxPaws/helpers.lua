@@ -243,14 +243,26 @@ function Helpers.angleLerp(a, b, t)
 end
 
 --- Consume pending mouse and gamepad right-stick input to compute a yaw delta.
+--- Uses the game's native sensitivity settings so wall-phase aiming matches normal gameplay.
 --- @param dt number Delta time in seconds.
 --- @return number The computed yaw delta in degrees.
 function Helpers.consumeAimYaw(dt)
-    local baseSens = 0.075
-    local sens = baseSens * cfg.aimSensitivity
-    local yawDelta = camera.pendingMouseDeltaX * sens + camera.rightStickX * sens * 120.0 * dt
+    local ss = Game.GetSettingsSystem()
+
+    -- Mouse: raw pixel delta × game mouse sensitivity × conversion factor
+    -- At default sensitivity (15), 0.005 * 15 = 0.075 deg/pixel (matches native feel)
+    local mouseVar = ss:GetVar("/controls/fppcameramouse", "FPP_MouseX")
+    local mouseSens = mouseVar and mouseVar:GetValue() or 15
+    local mouseYaw = camera.pendingMouseDeltaX * mouseSens * 0.005
+
+    -- Controller: analog -1..1 × game pad sensitivity × deg/sec rate × dt
+    -- At default sensitivity (15), 15 * 10.0 = 150 deg/sec at full stick
+    local padVar = ss:GetVar("/controls/fppcamerapad", "FPP_PadX")
+    local padSens = padVar and padVar:GetValue() or 15
+    local padYaw = camera.rightStickX * padSens * 10.0 * dt
+
     camera.pendingMouseDeltaX = 0
-    return yawDelta
+    return mouseYaw + padYaw
 end
 
 --- Apply a camera roll angle to the player's first-person camera component.

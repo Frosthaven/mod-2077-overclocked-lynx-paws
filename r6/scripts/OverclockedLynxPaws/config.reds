@@ -99,17 +99,6 @@ public class WallRunSettings extends ScriptableSystem {
     @runtimeProperty("ModSettings.mod", "Overclocked Lynx Paws")
     @runtimeProperty("ModSettings.category", "Wall Run")
     @runtimeProperty("ModSettings.category.order", "3")
-    @runtimeProperty("ModSettings.displayName", "Aim Sensitivity")
-    @runtimeProperty("ModSettings.description", "Aim sensitivity multiplier during wall run, climb, and kick")
-    @runtimeProperty("ModSettings.step", "0.1")
-    @runtimeProperty("ModSettings.min", "0.1")
-    @runtimeProperty("ModSettings.max", "3.0")
-    @runtimeProperty("ModSettings.dependency", "enabled")
-    public let aimSensitivity: Float = 1.0;
-
-    @runtimeProperty("ModSettings.mod", "Overclocked Lynx Paws")
-    @runtimeProperty("ModSettings.category", "Wall Run")
-    @runtimeProperty("ModSettings.category.order", "3")
     @runtimeProperty("ModSettings.displayName", "Minimum Wall Run Entry Angle")
     @runtimeProperty("ModSettings.description", "Minimum approach angle for wall running (0 = head-on, 90 = parallel). Approaches below this angle trigger wall climb when looking at the wall.")
     @runtimeProperty("ModSettings.step", "5.0")

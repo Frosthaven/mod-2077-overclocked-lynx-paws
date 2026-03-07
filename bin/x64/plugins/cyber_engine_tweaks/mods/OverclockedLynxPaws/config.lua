@@ -17,7 +17,6 @@ local cfg = {
     cameraYawOffset   = 35.0,   -- yaw degrees away from wall (applied once on entry)
     cameraLerpSpeed   = 4.0,    -- how fast camera roll lerps
     impulseGain       = 8.0,    -- velocity correction strength (higher = snappier)
-    aimSensitivity     = 1.0,    -- multiplier for aim sensitivity during wall actions
     triggerKerenzikov  = true,   -- activate kerenzikov during wall run aim / wall kick
     unlimitedWallClimb  = false,
     unlimitedWallSlide  = false,
@@ -41,7 +40,7 @@ local cfg = {
 local syncFields = {
     "enabled", "debugEnabled", "cetLogsEnabled", "requireLynxPaws",
     "wallRunDuration", "wallClimbDuration", "wallSlideDuration",
-    "maxWallChains", "chainBonusDuration", "aimSensitivity",
+    "maxWallChains", "chainBonusDuration",
     "triggerKerenzikov", "wallKickAimHold", "wallKickForce",
     "cameraTilt", "safeLandWindow", "safeLandAnyHeight",
     "unlimitedWallRun", "unlimitedWallClimb", "unlimitedWallSlide",
