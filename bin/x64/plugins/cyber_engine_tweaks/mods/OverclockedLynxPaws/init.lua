@@ -61,10 +61,11 @@ function OverclockedLynxPaws:New()
             if name == "Back" then
                 if atype == "BUTTON_PRESSED" then
                     input.backJustPressed = true
-                    input.pressingBack = true
+                    input.keyboardBack = true
                 elseif atype == "BUTTON_RELEASED" then
-                    input.pressingBack = false
+                    input.keyboardBack = false
                 end
+                input.pressingBack = input.keyboardBack or input.padBack
             end
             if name == "Sprint" or name == "ToggleSprint" then
                 if atype == "BUTTON_PRESSED" then
@@ -101,6 +102,11 @@ function OverclockedLynxPaws:New()
                 camera.pendingMouseDeltaX = camera.pendingMouseDeltaX + action:GetValue(action)
             elseif name == "right_stick_x" then
                 camera.rightStickX = action:GetValue(action)
+            end
+            -- Controller left stick Y: treat pull-back as pressingBack
+            if name == "left_stick_y" then
+                input.padBack = action:GetValue(action) < -0.5
+                input.pressingBack = input.keyboardBack or input.padBack
             end
         end)
 
