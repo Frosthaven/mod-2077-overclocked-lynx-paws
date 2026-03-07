@@ -442,7 +442,7 @@ beginMantisGrab = function()
 
     -- Clear any residual melee/combo state before starting blade extension
     Mantis.resetMeleeState()
-    wallState.mantisGrabAttackFrames = 0
+    wallState.mantisGrabAttackTimer = 0
 
     Helpers.playSound("w_cyb_mantis_spy_perk_charged")
     Kerenzikov.pause()
@@ -467,7 +467,8 @@ endMantisGrab = function(doJump)
     wallState.mantisGrabMeshHidden = nil
     wallState.mantisGrabHideDelay = nil
     wallState.mantisGrabThrust = nil
-    wallState.mantisGrabAttackFrames = nil
+    wallState.mantisGrabAttackTimer = nil
+    wallState.mantisGrabAttackSent = nil
 
     -- Reset FPP camera orientation (clear any residual pitch from shoulder peek)
     local camComp = wallState.player:GetFPPCameraComponent()
@@ -1152,16 +1153,17 @@ end
 local function updateMantisGrab(dt, airborne, dashCancel, LynxPaw)
     wallState.phaseTimer = wallState.phaseTimer + dt
 
-    -- Frame sequencing: MeleeNotReady (frame 0) -> Attack (frame 2) -> grab override (frame 6)
-    -- The delay between MeleeNotReady and Attack lets the anim graph clear residual melee state
-    if wallState.mantisGrabAttackFrames then
-        wallState.mantisGrabAttackFrames = wallState.mantisGrabAttackFrames + 1
-        if wallState.mantisGrabAttackFrames == 2 then
-            AnimationControllerComponent.PushEvent(wallState.player, CName.new("Attack"))
-        elseif wallState.mantisGrabAttackFrames >= 6 then
+    -- Time-based sequencing: MeleeNotReady (t=0) -> Attack (t>=0.033s) -> grab override (t>=0.100s)
+    -- The delays give the anim graph time to process each state change regardless of FPS
+    if wallState.mantisGrabAttackTimer then
+        wallState.mantisGrabAttackTimer = wallState.mantisGrabAttackTimer + dt
+        if wallState.mantisGrabAttackTimer >= 0.100 then
             Mantis.grab()
             AnimationControllerComponent.PushEvent(wallState.player, CName.new("MeleeNotReady"))
-            wallState.mantisGrabAttackFrames = nil
+            wallState.mantisGrabAttackTimer = nil
+        elseif wallState.mantisGrabAttackTimer >= 0.033 and not wallState.mantisGrabAttackSent then
+            AnimationControllerComponent.PushEvent(wallState.player, CName.new("Attack"))
+            wallState.mantisGrabAttackSent = true
         end
     end
 

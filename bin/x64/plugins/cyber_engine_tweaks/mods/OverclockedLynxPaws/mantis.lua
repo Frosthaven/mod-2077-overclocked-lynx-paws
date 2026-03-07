@@ -54,6 +54,13 @@ function Mantis.resetMeleeState()
         meleeSlot.activeDuration = 0
         meleeSlot.recoverDuration = 0
         AnimationControllerComponent.ApplyFeature(player, CName.new("MeleeSlotData"), meleeSlot)
+
+        local meleeData = AnimFeature_MeleeData.new()
+        meleeData.isMeleeWeaponEquipped = false
+        meleeData.isAttacking = false
+        meleeData.attackNumber = 0
+        meleeData.shouldHandsDisappear = false
+        AnimationControllerComponent.ApplyFeature(player, CName.new("MeleeData"), meleeData)
     end)
 end
 
@@ -112,6 +119,8 @@ function Mantis.release()
         cwFeature.isQuickAction = false
         cwFeature.actionDuration = 0.0
         AnimationControllerComponent.ApplyFeature(player, CName.new("LeftHandCyberware"), cwFeature)
+
+        AnimationControllerComponent.PushEvent(player, CName.new("MeleeNotReady"))
     end)
 end
 
