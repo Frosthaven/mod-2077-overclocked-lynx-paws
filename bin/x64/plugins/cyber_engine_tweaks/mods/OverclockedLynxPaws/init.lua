@@ -18,6 +18,7 @@ function OverclockedLynxPaws:New()
         local LynxPaw = require("lynxpaw")
         local Phases = require("phases")
         local Debug = require("debug")
+        local Mantis = require("mantis")
 
         Helpers.init()
 
@@ -79,7 +80,7 @@ function OverclockedLynxPaws:New()
                     input.meleeJustPressed = true
                 end
                 -- Consume melee during wall phases to block native attack animation
-                if wallState.phase ~= "IDLE" then
+                if wallState.phase ~= "IDLE" and Mantis.checkEquipped() then
                     ListenerActionConsumer.Consume(consumer)
                 end
             end
