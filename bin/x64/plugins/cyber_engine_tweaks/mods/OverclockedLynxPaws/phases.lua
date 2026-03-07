@@ -1107,6 +1107,24 @@ local function updateWallJumpAim(dt, airborne, dashCancel, LynxPaw)
     camera.tilt = (wallState.aimStartTilt or 0) * (1.0 - t)
     Helpers.applyCameraRoll(camera.tilt)
 
+    -- Exit: melee → drop off wall
+    if input.meleeJustPressed and wallState.phaseTimer > 0.1 then
+        Helpers.resetCameraRoll()
+        wallState.aimHoldZ = nil
+        wallState.phase = "IDLE"
+        Kerenzikov.deactivate()
+        return
+    end
+
+    -- Exit: weapon switch → drop off wall
+    if input.weaponSwitchJustPressed and wallState.phaseTimer > 0.1 then
+        Helpers.resetCameraRoll()
+        wallState.aimHoldZ = nil
+        wallState.phase = "IDLE"
+        Kerenzikov.deactivate()
+        return
+    end
+
     if (not cfg.unlimitedHangtime and wallState.phaseTimer >= aimDuration) or (input.jumpJustPressed and wallState.phaseTimer > 0.1) then
         local fwd = Game.GetCameraSystem():GetActiveCameraForward()
         Helpers.resetCameraRoll()
@@ -1620,13 +1638,14 @@ function Phases.update(dt, syncSettings, LynxPaw)
             wallState.exitPushGrounded = true
             wallState.exitPushLandTime = wallState.phaseTimer
         end
-        if wallState.phase == "MANTIS_GRAB" then
+        if wallState.phase == "MANTIS_GRAB" and wallState.phaseTimer > 0.5 then
             endMantisGrab(false)
         end
-        if wallState.phase == "WALL_JUMP_AIM"
+        if (wallState.phase == "WALL_JUMP_AIM"
            or wallState.phase == "WALL_JUMPING"
-           or wallState.phase == "AIR_HOVER" then
+           or wallState.phase == "AIR_HOVER") and wallState.phaseTimer > 0.5 then
             Kerenzikov.deactivate()
+            Helpers.resetCameraRoll()
             wallState.phase = "IDLE"
             wallState.wallNormal = nil
             wallState.kickDirection = nil
