@@ -1086,6 +1086,8 @@ local function updateWallJumpAim(dt, airborne, dashCancel, LynxPaw)
         wallState.aimHoldX = pos.x
         wallState.aimHoldY = pos.y
     end
+    -- Zero velocity each frame to prevent gravity from building momentum between teleports
+    Helpers.queueImpulse(Vector4.new(0, 0, 0, 0))
     if math.abs(pos.z - wallState.aimHoldZ) > 0.01
        or math.abs(pos.x - wallState.aimHoldX) > 0.01
        or math.abs(pos.y - wallState.aimHoldY) > 0.01 then
@@ -1241,20 +1243,17 @@ local function updateMantisGrab(dt, airborne, dashCancel, LynxPaw)
         grabZOffset = -GRAB_DIP * (1 - t)
     end
 
-    -- Position lock + yaw control during pan
-    local pos = wallState.player:GetWorldPosition()
+    -- Position lock + yaw control (always teleport to prevent drift)
     local holdZ = wallState.aimHoldZ + grabZOffset
-    local useYaw = timer < panTotal and camera.trackedYaw or wallState.player:GetWorldYaw()
-    if math.abs(pos.z - holdZ) > 0.01
-       or math.abs(pos.x - wallState.aimHoldX) > 0.01
-       or math.abs(pos.y - wallState.aimHoldY) > 0.01
-       or timer < panTotal then
-        Game.GetTeleportationFacility():Teleport(
-            wallState.player,
-            Vector4.new(wallState.aimHoldX, wallState.aimHoldY, holdZ, 1),
-            EulerAngles.new(0, 0, useYaw)
-        )
+    if timer >= panTotal then
+        -- Pan finished — let the player aim freely
+        camera.trackedYaw = camera.trackedYaw - Helpers.consumeAimYaw(dt)
     end
+    Game.GetTeleportationFacility():Teleport(
+        wallState.player,
+        Vector4.new(wallState.aimHoldX, wallState.aimHoldY, holdZ, 1),
+        EulerAngles.new(0, 0, camera.trackedYaw)
+    )
 
     -- Camera unroll over aimDuration + shoulder-peek pitch via FPP camera component
     local t = aimDuration > 0 and math.min(1.0, timer / aimDuration) or 1.0
