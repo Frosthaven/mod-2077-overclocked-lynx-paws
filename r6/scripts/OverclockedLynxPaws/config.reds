@@ -173,9 +173,17 @@ public class WallRunSettings extends ScriptableSystem {
     @runtimeProperty("ModSettings.description", "How long before landing you can press crouch to trigger a safe roll landing (seconds)")
     @runtimeProperty("ModSettings.step", "0.1")
     @runtimeProperty("ModSettings.min", "0.0")
-    @runtimeProperty("ModSettings.max", "4.0")
+    @runtimeProperty("ModSettings.max", "20.0")
     @runtimeProperty("ModSettings.dependency", "enabled")
     public let safeLandWindow: Float = 0.30;
+
+    @runtimeProperty("ModSettings.mod", "Overclocked Lynx Paws")
+    @runtimeProperty("ModSettings.category", "Safe Landing")
+    @runtimeProperty("ModSettings.category.order", "5")
+    @runtimeProperty("ModSettings.displayName", "Always Safely Land")
+    @runtimeProperty("ModSettings.description", "Automatically perform a safe roll on any damaging fall. Fatal heights still require Survive Any Height.")
+    @runtimeProperty("ModSettings.dependency", "enabled")
+    public let safeLandAlways: Bool = false;
 
     @runtimeProperty("ModSettings.mod", "Overclocked Lynx Paws")
     @runtimeProperty("ModSettings.category", "Safe Landing")

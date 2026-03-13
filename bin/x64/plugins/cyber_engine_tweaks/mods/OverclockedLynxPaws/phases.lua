@@ -1612,6 +1612,13 @@ function Phases.update(dt, syncSettings, LynxPaw)
         exitWallRun()
     end
 
+    -- Always-safe-land: auto-activate buffer on landing frame
+    if cfg.safeLandAlways and wallState.phase == "IDLE" and not airborne
+        and not wallState.crouchBuffered then
+        wallState.crouchBuffered = true
+        wallState.crouchBufferTimer = 0
+    end
+
     SafeLanding.updateCrouchBuffer(dt)
     SafeLanding.updateSafeLandFact()
 
