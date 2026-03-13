@@ -1648,9 +1648,6 @@ function Phases.update(dt, syncSettings, LynxPaw)
             wallState.exitPushGrounded = true
             wallState.exitPushLandTime = wallState.phaseTimer
         end
-        if wallState.phase == "MANTIS_GRAB" and wallState.phaseTimer > 0.5 then
-            endMantisGrab(false)
-        end
         if (wallState.phase == "WALL_JUMP_AIM"
            or wallState.phase == "WALL_JUMPING"
            or wallState.phase == "AIR_HOVER") and wallState.phaseTimer > 0.5 then
