@@ -6,3 +6,4 @@ settings.json
 vkd3d-proton.cache.write
 build/
 .justfile.local
+research
