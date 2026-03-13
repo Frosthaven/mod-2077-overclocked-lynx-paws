@@ -126,7 +126,7 @@ public class WallRunSettings extends ScriptableSystem {
     @runtimeProperty("ModSettings.displayName", "Wall Hangtime")
     @runtimeProperty("ModSettings.description", "How long to hold position before kicking off the wall (seconds)")
     @runtimeProperty("ModSettings.step", "0.25")
-    @runtimeProperty("ModSettings.min", "0.25")
+    @runtimeProperty("ModSettings.min", "0.0")
     @runtimeProperty("ModSettings.max", "10.0")
     @runtimeProperty("ModSettings.dependency", "enabled")
     public let wallKickAimHold: Float = 0.25;

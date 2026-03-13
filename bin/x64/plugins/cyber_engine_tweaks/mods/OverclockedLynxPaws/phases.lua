@@ -1127,7 +1127,10 @@ local function updateWallJumpAim(dt, airborne, dashCancel, LynxPaw)
 
     if (not cfg.unlimitedHangtime and wallState.phaseTimer >= aimDuration) or (input.jumpJustPressed and wallState.phaseTimer > 0.1) then
         local fwd = Game.GetCameraSystem():GetActiveCameraForward()
-        Helpers.resetCameraRoll()
+        -- If unroll finished, snap-reset; otherwise let IDLE lerp finish it
+        if t >= 1.0 then
+            Helpers.resetCameraRoll()
+        end
 
         local wn = wallState.lastKickWallNormal
         if wn and not wallState.wallClimbUsedThisJump then
