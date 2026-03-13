@@ -37,6 +37,14 @@ local STAMINA_WALL_CLIMB_PER_SEC = 140 -- per second while wall climbing
 local STAMINA_WALL_KICK          = 35  -- flat cost per wall kick / jump
 local STAMINA_MIN_TO_START       = 35  -- minimum stamina to enter wall run / climb
 
+--- Current wall run lateral speed, accounting for entry speed decay over time.
+local function getWallRunSpeed()
+    local decayFrac = math.min((wallState.wallRunElapsed or 0) / WALL_RUN_SPEED_DECAY, 1.0)
+    local speed = (wallState.wallRunEntrySpeed or 0) + (WALL_RUN_MIN_SPEED - (wallState.wallRunEntrySpeed or 0)) * decayFrac
+    if wallState.kerenzikovActive then speed = Kerenzikov.wallRunSpeed end
+    return speed
+end
+
 ---------------------------------------------------------------------------
 -- State Machine Transitions:
 --
@@ -720,12 +728,14 @@ local function updateWallRunning(dt, airborne, dashCancel, LynxPaw)
         wallState.wallLostTimer = (wallState.wallLostTimer or 0) + dt
         if wallState.wallLostTimer >= WALL_RUN_GRACE_DURATION then
             Helpers.logDebug(string.format("[WR_EXIT] %s grace=%.3f", lostReason, wallState.wallLostTimer))
+            local dir = wallState.wallRunDir
+            local speed = getWallRunSpeed()
             exitWallRun()
-            if lostReason:find("wall ending") then
-                local psmEvent = PSMPostponedParameterBool.new()
-                psmEvent.id = CName.new("locomotionForceSprintToggle")
-                psmEvent.value = true
-                wallState.player:QueueEvent(psmEvent)
+            if dir and speed then
+                Helpers.queueWallKick(Vector4.new(
+                    dir.x * speed,
+                    dir.y * speed,
+                    0, 0))
             end
             return
         end
@@ -781,9 +791,7 @@ local function updateWallRunning(dt, airborne, dashCancel, LynxPaw)
     wallState.targetZ = wallState.targetZ + vertSpeed * dt
 
     -- Lateral movement — speed decays toward minimum
-    local decayFrac = math.min(wallState.wallRunElapsed / WALL_RUN_SPEED_DECAY, 1.0)
-    local runSpeed = wallState.wallRunEntrySpeed + (WALL_RUN_MIN_SPEED - wallState.wallRunEntrySpeed) * decayFrac
-    if wallState.kerenzikovActive then runSpeed = Kerenzikov.wallRunSpeed end
+    local runSpeed = getWallRunSpeed()
     wallState.wallPathDist = wallState.wallPathDist + runSpeed * dt
 
     -- Along-wall movement
@@ -1608,8 +1616,17 @@ function Phases.update(dt, syncSettings, LynxPaw)
 
     -- Crouch during wall phases: dismount immediately
     if input.crouchJustPressed and (wallState.phase == "WALL_RUNNING" or wallState.phase == "WALL_CLIMBING" or wallState.phase == "WALL_SLIDING" or wallState.phase == "WALL_JUMP_AIM") then
+        -- Preserve momentum when dismounting a wall run
+        local runDir = wallState.wallRunDir
+        local runSpeed = runDir and getWallRunSpeed() or nil
         Kerenzikov.deactivate()
         exitWallRun()
+        if runDir and runSpeed and wallState.phase == "IDLE" then
+            Helpers.queueWallKick(Vector4.new(
+                runDir.x * runSpeed,
+                runDir.y * runSpeed,
+                0, 0))
+        end
     end
 
     -- Always-safe-land: auto-activate buffer on landing frame
