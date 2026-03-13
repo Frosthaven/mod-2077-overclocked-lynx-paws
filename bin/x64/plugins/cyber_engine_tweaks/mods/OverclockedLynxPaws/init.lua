@@ -54,7 +54,7 @@ function OverclockedLynxPaws:New()
                 end
             end
             if name == "Crouch" or name == "ToggleCrouch" then
-                if atype == "BUTTON_PRESSED" then
+                if atype == "BUTTON_PRESSED" or atype == "BUTTON_HOLD_COMPLETE" then
                     input.crouchJustPressed = true
                 end
             end
