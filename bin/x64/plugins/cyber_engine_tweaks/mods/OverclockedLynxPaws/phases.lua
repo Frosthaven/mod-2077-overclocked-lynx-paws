@@ -1629,9 +1629,9 @@ function Phases.update(dt, syncSettings, LynxPaw)
         end
     end
 
-    -- Always-safe-land: auto-activate buffer on landing frame
-    if cfg.safeLandAlways and wallState.phase == "IDLE" and not airborne
-        and not wallState.crouchBuffered then
+    -- Always-safe-land: keep buffer active throughout every airborne period
+    -- so the Redscript hook can downgrade death landings while still in air.
+    if cfg.safeLandAlways and wallState.phase == "IDLE" and airborne then
         wallState.crouchBuffered = true
         wallState.crouchBufferTimer = 0
     end
@@ -1642,7 +1642,7 @@ function Phases.update(dt, syncSettings, LynxPaw)
     -- Safe landing intercept: when buffer is active and player touches down,
     -- trigger the roll if the fall was significant (>3m from peak).
     local fallDist = (wallState.airPeakZ or 0) - wallState.player:GetWorldPosition().z
-    if wallState.crouchBuffered and wallState.phase == "IDLE" and not airborne and fallDist >= 3.0 then
+    if wallState.crouchBuffered and wallState.phase == "IDLE" and not airborne and fallDist >= 3.0 and wallState.airborneTime >= 0.5 then
         SafeLanding.triggerSafeRoll()
     elseif wallState.crouchBuffered and not airborne then
         SafeLanding.clearBuffer()
