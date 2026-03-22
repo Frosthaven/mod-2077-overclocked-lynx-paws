@@ -14,7 +14,7 @@ archive:
 
 # Build release zip
 build: archive
-    rm -rf "{{repo}}/build/staging"
+    rm -rf "{{repo}}/build/staging" "{{repo}}/build/OverclockedLynxPaws.zip"
     mkdir -p "{{repo}}/build/staging"
     cp -r "{{repo}}/bin" "{{repo}}/build/staging/"
     cp -r "{{repo}}/r6" "{{repo}}/build/staging/"
