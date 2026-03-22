@@ -83,12 +83,27 @@ protected func OnUpdate(timeDelta: Float, stateContext: ref<StateContext>, scrip
 protected func OnUpdate(timeDelta: Float, stateContext: ref<StateContext>, scriptInterface: ref<StateGameScriptInterface>) -> Void {
     let player = scriptInterface.executionOwner as PlayerPuppet;
     if IsDefined(player) {
-        if GameInstance.GetQuestsSystem(player.GetGame()).GetFact(n"wr_uncrouch") > 0 {
+        let qs = GameInstance.GetQuestsSystem(player.GetGame());
+        if qs.GetFact(n"wr_uncrouch") > 0 {
             stateContext.SetConditionBoolParameter(n"CrouchToggled", false, true);
-            GameInstance.GetQuestsSystem(player.GetGame()).SetFact(n"wr_uncrouch", 0);
+            qs.SetFact(n"wr_uncrouch", 0);
         }
     }
     wrappedMethod(timeDelta, stateContext, scriptInterface);
+}
+
+// ── Force sprint after safe roll uncrouch ──
+
+@wrapMethod(SprintDecisions)
+protected const func EnterCondition(const stateContext: ref<StateContext>, const scriptInterface: ref<StateGameScriptInterface>) -> Bool {
+    let player = scriptInterface.executionOwner as PlayerPuppet;
+    if IsDefined(player) {
+        if GameInstance.GetQuestsSystem(player.GetGame()).GetFact(n"wr_sprint") > 0 {
+            GameInstance.GetQuestsSystem(player.GetGame()).SetFact(n"wr_sprint", 0);
+            return true;
+        }
+    }
+    return wrappedMethod(stateContext, scriptInterface);
 }
 
 // ── Block arm cyberware equip/unequip during wall phases (Cyberware-EX compatibility) ──
