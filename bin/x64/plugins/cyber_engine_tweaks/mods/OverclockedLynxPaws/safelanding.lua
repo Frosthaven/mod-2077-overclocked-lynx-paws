@@ -26,7 +26,7 @@ function SafeLanding.updateSafeLandFact()
 end
 
 --- Initiate the safe landing roll sequence: cancel hard landing, force crouch, holster weapon, and begin forward roll.
-function SafeLanding.triggerSafeRoll()
+function SafeLanding.triggerSafeRoll(fallDist)
     local bb = Helpers.getPlayerBlackboard()
     if bb then
         bb:SetInt(Game.GetAllBlackboardDefs().PlayerStateMachine.Fall, 0, true)
@@ -66,15 +66,9 @@ function SafeLanding.triggerSafeRoll()
     end
     wallState.crouchBuffered = false
     wallState.crouchBufferTimer = 0
-    -- Fire a forward impulse so the game engine handles movement
-    local imp = PSMImpulse.new()
-    imp.id = "impulse"
-    local d = wallState.safeRollDir
-    imp.impulse = Vector4.new(
-        d.x * wallState.safeRollSpeed,
-        d.y * wallState.safeRollSpeed,
-        0, 0)
-    wallState.player:QueueEvent(imp)
+    -- Scale roll speed with fall height: more height = more momentum to convert
+    local fd = math.max(fallDist or 3.0, 3.0)
+    wallState.safeRollSpeed = math.min(75.0, 2.66 + (fd - 3.0) * 0.49)
 end
 
 --- Clear the crouch buffer without triggering a roll (used for short falls).
@@ -123,6 +117,29 @@ function SafeLanding.updateRoll(dt)
                 equipReq.owner = wallState.player
                 Game.GetScriptableSystemsContainer():Get(CName.new("EquipmentSystem")):QueueRequest(equipReq)
                 wallState.safeRollShouldReequip = false
+            end
+        end
+        -- Teleport forward each frame with collision check
+        local d = wallState.safeRollDir
+        if d then
+            local move = wallState.safeRollSpeed * dt
+            local pos = wallState.player:GetWorldPosition()
+            local origin = Vector4.new(pos.x, pos.y, pos.z + 0.5, 0) -- hip height
+            local hit, _, hitDist = Helpers.raycast(origin, d, move + 0.3)
+            if hit then
+                move = math.max(0, hitDist - 0.3) -- stop 0.3m before wall
+            end
+            if move > 0 then
+                local nx, ny = pos.x + d.x * move, pos.y + d.y * move
+                -- Snap to ground: raycast down from above new position
+                local above = Vector4.new(nx, ny, pos.z + 1.0, 0)
+                local down = Vector4.new(0, 0, -1, 0)
+                local gHit, gPos = Helpers.raycast(above, down, 2.5)
+                local nz = gHit and gPos.z or pos.z
+                Game.GetTeleportationFacility():Teleport(
+                    wallState.player,
+                    Vector4.new(nx, ny, nz, 0),
+                    EulerAngles.new(0, 0, wallState.safeRollYaw))
             end
         end
         -- Camera pitch: 0.1s delay then full 360-degree forward roll

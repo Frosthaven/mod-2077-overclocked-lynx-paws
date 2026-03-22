@@ -1651,7 +1651,7 @@ function Phases.update(dt, syncSettings, LynxPaw)
     local landingSafe = qs and qs:GetFact(CName.new("wr_landing_safe")) > 0
     if wallState.crouchBuffered and wallState.phase == "IDLE" and not airborne and fallDist >= 3.0 and wallState.airborneTime >= 0.5 and landingSafe then
         if qs then qs:SetFact(CName.new("wr_landing_safe"), 0) end
-        SafeLanding.triggerSafeRoll()
+        SafeLanding.triggerSafeRoll(fallDist)
     elseif wallState.crouchBuffered and not airborne then
         if qs then qs:SetFact(CName.new("wr_landing_safe"), 0) end
         SafeLanding.clearBuffer()
