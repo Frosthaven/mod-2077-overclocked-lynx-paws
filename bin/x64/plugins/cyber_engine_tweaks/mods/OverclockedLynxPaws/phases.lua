@@ -1644,11 +1644,16 @@ function Phases.update(dt, syncSettings, LynxPaw)
     SafeLanding.updateSafeLandFact()
 
     -- Safe landing intercept: when buffer is active and player touches down,
-    -- trigger the roll if the fall was significant (>3m from peak).
+    -- trigger the roll if the fall was significant (>3m from peak) AND the
+    -- Redscript hook confirmed it successfully downgraded the landing.
     local fallDist = (wallState.airPeakZ or 0) - wallState.player:GetWorldPosition().z
-    if wallState.crouchBuffered and wallState.phase == "IDLE" and not airborne and fallDist >= 3.0 and wallState.airborneTime >= 0.5 then
+    local qs = Game.GetQuestsSystem()
+    local landingSafe = qs and qs:GetFact(CName.new("wr_landing_safe")) > 0
+    if wallState.crouchBuffered and wallState.phase == "IDLE" and not airborne and fallDist >= 3.0 and wallState.airborneTime >= 0.5 and landingSafe then
+        if qs then qs:SetFact(CName.new("wr_landing_safe"), 0) end
         SafeLanding.triggerSafeRoll()
     elseif wallState.crouchBuffered and not airborne then
+        if qs then qs:SetFact(CName.new("wr_landing_safe"), 0) end
         SafeLanding.clearBuffer()
     end
 

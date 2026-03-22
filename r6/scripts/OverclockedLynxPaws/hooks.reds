@@ -161,5 +161,8 @@ protected func OnUpdate(timeDelta: Float, stateContext: ref<StateContext>, scrip
         // Clear fall blackboard state
         this.SetBlackboardIntVariable(scriptInterface, GetAllBlackboardDefs().PlayerStateMachine.Fall, EnumInt(gamePSMFallStates.RegularFall));
         this.SetBlackboardIntVariable(scriptInterface, GetAllBlackboardDefs().PlayerStateMachine.Landing, 0);
+
+        // Confirm to Lua that the landing was successfully downgraded
+        qs.SetFact(n"wr_landing_safe", 1);
     }
 }
