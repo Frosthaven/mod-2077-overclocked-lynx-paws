@@ -28,6 +28,76 @@
               "maleVariant": "",
               "primaryKey": "0",
               "secondaryKey": "WallRunning-LynxPaws-Description"
+            },
+            {
+              "$type": "localizationPersistenceOnScreenEntry",
+              "femaleVariant": "Wall Rider",
+              "maleVariant": "",
+              "primaryKey": "0",
+              "secondaryKey": "OLP_WallRider_Name"
+            },
+            {
+              "$type": "localizationPersistenceOnScreenEntry",
+              "femaleVariant": "[Overclocked Lynx Paws]\\n\\nEnables Wall Run.",
+              "maleVariant": "",
+              "primaryKey": "0",
+              "secondaryKey": "OLP_WallRider_Desc"
+            },
+            {
+              "$type": "localizationPersistenceOnScreenEntry",
+              "femaleVariant": "Gecko Grip",
+              "maleVariant": "",
+              "primaryKey": "0",
+              "secondaryKey": "OLP_GeckoGrip_Name"
+            },
+            {
+              "$type": "localizationPersistenceOnScreenEntry",
+              "femaleVariant": "[Overclocked Lynx Paws]\\n\\nEnables Wall Climb and Wall Slide.",
+              "maleVariant": "",
+              "primaryKey": "0",
+              "secondaryKey": "OLP_GeckoGrip_Desc"
+            },
+            {
+              "$type": "localizationPersistenceOnScreenEntry",
+              "femaleVariant": "Rebound",
+              "maleVariant": "",
+              "primaryKey": "0",
+              "secondaryKey": "OLP_Rebound_Name"
+            },
+            {
+              "$type": "localizationPersistenceOnScreenEntry",
+              "femaleVariant": "[Overclocked Lynx Paws]\\n\\nEnables Wall Kick, Wall Hang, and Reverse Wall Hang.",
+              "maleVariant": "",
+              "primaryKey": "0",
+              "secondaryKey": "OLP_Rebound_Desc"
+            },
+            {
+              "$type": "localizationPersistenceOnScreenEntry",
+              "femaleVariant": "Freefall Override",
+              "maleVariant": "",
+              "primaryKey": "0",
+              "secondaryKey": "OLP_FreefallOverride_Name"
+            },
+            {
+              "$type": "localizationPersistenceOnScreenEntry",
+              "femaleVariant": "[Overclocked Lynx Paws]\\n\\nEnables Safe Landing.",
+              "maleVariant": "",
+              "primaryKey": "0",
+              "secondaryKey": "OLP_FreefallOverride_Desc"
+            },
+            {
+              "$type": "localizationPersistenceOnScreenEntry",
+              "femaleVariant": "Predator's Perch",
+              "maleVariant": "",
+              "primaryKey": "0",
+              "secondaryKey": "OLP_PredatorsPerch_Name"
+            },
+            {
+              "$type": "localizationPersistenceOnScreenEntry",
+              "femaleVariant": "[Overclocked Lynx Paws]\\n\\nEnables Mantis Hook.",
+              "maleVariant": "",
+              "primaryKey": "0",
+              "secondaryKey": "OLP_PredatorsPerch_Desc"
             }
           ]
         }

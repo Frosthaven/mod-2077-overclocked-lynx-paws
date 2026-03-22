@@ -1,3 +1,4 @@
+local cfg = require("config").cfg
 local state = require("state")
 local wallState = state.wallState
 
@@ -69,6 +70,13 @@ end
 function Mantis.grab()
     local player = wallState.player or Game.GetPlayer()
     if not player then return end
+    -- Perkware gate
+    if cfg.integratePerkware then
+        local ok, val = pcall(function()
+            return Game.GetStatsSystem():GetStatValue(player:GetEntityID(), gamedataStatType.OLP_MantisGrabEquipped) > 0
+        end)
+        if not (ok and val) then return end
+    end
 
     -- Direct AnimFeatures for the grab animation
     pcall(function()

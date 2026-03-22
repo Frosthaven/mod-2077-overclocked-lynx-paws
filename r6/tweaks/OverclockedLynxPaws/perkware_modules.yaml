@@ -1,0 +1,385 @@
+# =========================================================
+# Overclocked Lynx Paws — Perkware Integration
+# Optional modules that gate parkour abilities when Perkware
+# integration is enabled in mod settings.
+# Requires: Perkware mod installed
+# =========================================================
+
+# ── Custom Stats ──────────────────────────────────────────
+
+BaseStats.OLP_WallRunEquipped:
+  $type: Stat
+  enumName: OLP_WallRunEquipped
+  max: 1
+  min: 0
+  decimalPlaces: 0
+
+BaseStats.OLP_WallClimbEquipped:
+  $type: Stat
+  enumName: OLP_WallClimbEquipped
+  max: 1
+  min: 0
+  decimalPlaces: 0
+
+BaseStats.OLP_WallKickEquipped:
+  $type: Stat
+  enumName: OLP_WallKickEquipped
+  max: 1
+  min: 0
+  decimalPlaces: 0
+
+BaseStats.OLP_SafeLandingEquipped:
+  $type: Stat
+  enumName: OLP_SafeLandingEquipped
+  max: 1
+  min: 0
+  decimalPlaces: 0
+
+BaseStats.OLP_MantisGrabEquipped:
+  $type: Stat
+  enumName: OLP_MantisGrabEquipped
+  max: 1
+  min: 0
+  decimalPlaces: 0
+
+# ── Wall Run Module ──────────────────────────────────────
+
+Items.OLP_VerticalityModule:
+  $base: Items.Fragment
+  $props: AutoFlats
+  tags:
+    - PerkwareModule
+    - PerkwareUniqueStat
+    - OLP_WallRunEquipped
+
+  icon:
+    atlasResourcePath: olp\icons\olp_perk_icons.inkatlas
+    atlasPartName: netrunning_area_02_perk1
+
+  parentAttachmentType: ParentAttachmentType.Slot
+
+  placementSlots:
+    - !append-once AttachmentSlots.CyberwareMod1
+    - !append-once AttachmentSlots.CyberwareMod2
+    - !append-once AttachmentSlots.CyberwareMod3
+    - !append-once AttachmentSlots.CyberwareMod4
+    - !append-once AttachmentSlots.CyberwareMod5
+
+  displayName: LocKey#OLP_WallRider_Name
+  localizedDescription: ""
+  quality: Quality.Uncommon
+
+  buyPrice:
+    - Price.CyberwareModBasePrice
+    - Price.BuyMultiplier
+    - Price.ItemQualityMultiplier
+    - Price.BuyPrice_StreetCred_Discount
+
+  sellPrice:
+    - Price.CyberwareModBasePrice
+    - Price.ItemQualityMultiplier
+    - Price.SellMultiplier
+
+  OnEquip:
+    - $type: gamedataGameplayLogicPackage_Record
+      stackable: False
+      UIData:
+        $type: gamedataGameplayLogicPackageUIData_Record
+        localizedDescription: LocKey#OLP_WallRider_Desc
+        floatValues: []
+        intValues: []
+        nameValues: []
+        stats: []
+      effectors: []
+      animationWrapperOverrides: []
+      stats:
+        - $type: ConstantStatModifier
+          modifierType: Additive
+          statType: BaseStats.OLP_WallRunEquipped
+          value: 1
+
+# ── Wall Climb Module ────────────────────────────────────
+
+Items.OLP_GeckoGripModule:
+  $base: Items.Fragment
+  $props: AutoFlats
+  tags:
+    - PerkwareModule
+    - PerkwareUniqueStat
+    - OLP_WallClimbEquipped
+
+  icon:
+    atlasResourcePath: olp\icons\olp_perk_icons.inkatlas
+    atlasPartName: netrunning_area_06_perk2
+
+  parentAttachmentType: ParentAttachmentType.Slot
+
+  placementSlots:
+    - !append-once AttachmentSlots.CyberwareMod1
+    - !append-once AttachmentSlots.CyberwareMod2
+    - !append-once AttachmentSlots.CyberwareMod3
+    - !append-once AttachmentSlots.CyberwareMod4
+    - !append-once AttachmentSlots.CyberwareMod5
+
+  displayName: LocKey#OLP_GeckoGrip_Name
+  localizedDescription: ""
+  quality: Quality.Uncommon
+
+  buyPrice:
+    - Price.CyberwareModBasePrice
+    - Price.BuyMultiplier
+    - Price.ItemQualityMultiplier
+    - Price.BuyPrice_StreetCred_Discount
+
+  sellPrice:
+    - Price.CyberwareModBasePrice
+    - Price.ItemQualityMultiplier
+    - Price.SellMultiplier
+
+  OnEquip:
+    - $type: gamedataGameplayLogicPackage_Record
+      stackable: False
+      UIData:
+        $type: gamedataGameplayLogicPackageUIData_Record
+        localizedDescription: LocKey#OLP_GeckoGrip_Desc
+        floatValues: []
+        intValues: []
+        nameValues: []
+        stats: []
+      effectors: []
+      animationWrapperOverrides: []
+      stats:
+        - $type: ConstantStatModifier
+          modifierType: Additive
+          statType: BaseStats.OLP_WallClimbEquipped
+          value: 1
+
+# ── Wall Kick Module ─────────────────────────────────────
+
+Items.OLP_ReboundModule:
+  $base: Items.Fragment
+  $props: AutoFlats
+  tags:
+    - PerkwareModule
+    - PerkwareUniqueStat
+    - OLP_WallKickEquipped
+
+  icon:
+    atlasResourcePath: olp\icons\olp_perk_icons.inkatlas
+    atlasPartName: gunslinger_area_06_perk2
+
+  parentAttachmentType: ParentAttachmentType.Slot
+
+  placementSlots:
+    - !append-once AttachmentSlots.CyberwareMod1
+    - !append-once AttachmentSlots.CyberwareMod2
+    - !append-once AttachmentSlots.CyberwareMod3
+    - !append-once AttachmentSlots.CyberwareMod4
+    - !append-once AttachmentSlots.CyberwareMod5
+
+  displayName: LocKey#OLP_Rebound_Name
+  localizedDescription: ""
+  quality: Quality.Uncommon
+
+  buyPrice:
+    - Price.CyberwareModBasePrice
+    - Price.BuyMultiplier
+    - Price.ItemQualityMultiplier
+    - Price.BuyPrice_StreetCred_Discount
+
+  sellPrice:
+    - Price.CyberwareModBasePrice
+    - Price.ItemQualityMultiplier
+    - Price.SellMultiplier
+
+  OnEquip:
+    - $type: gamedataGameplayLogicPackage_Record
+      stackable: False
+      UIData:
+        $type: gamedataGameplayLogicPackageUIData_Record
+        localizedDescription: LocKey#OLP_Rebound_Desc
+        floatValues: []
+        intValues: []
+        nameValues: []
+        stats: []
+      effectors: []
+      animationWrapperOverrides: []
+      stats:
+        - $type: ConstantStatModifier
+          modifierType: Additive
+          statType: BaseStats.OLP_WallKickEquipped
+          value: 1
+
+# ── Safe Landing Module ──────────────────────────────────
+
+Items.OLP_ParkourRollModule:
+  $base: Items.Fragment
+  $props: AutoFlats
+  tags:
+    - PerkwareModule
+    - PerkwareUniqueStat
+    - OLP_SafeLandingEquipped
+
+  icon:
+    atlasResourcePath: olp\icons\olp_perk_icons.inkatlas
+    atlasPartName: reflexes_central_perk_1_3
+
+  parentAttachmentType: ParentAttachmentType.Slot
+
+  placementSlots:
+    - !append-once AttachmentSlots.CyberwareMod1
+    - !append-once AttachmentSlots.CyberwareMod2
+    - !append-once AttachmentSlots.CyberwareMod3
+    - !append-once AttachmentSlots.CyberwareMod4
+    - !append-once AttachmentSlots.CyberwareMod5
+
+  displayName: LocKey#OLP_FreefallOverride_Name
+  localizedDescription: ""
+  quality: Quality.Uncommon
+
+  buyPrice:
+    - Price.CyberwareModBasePrice
+    - Price.BuyMultiplier
+    - Price.ItemQualityMultiplier
+    - Price.BuyPrice_StreetCred_Discount
+
+  sellPrice:
+    - Price.CyberwareModBasePrice
+    - Price.ItemQualityMultiplier
+    - Price.SellMultiplier
+
+  OnEquip:
+    - $type: gamedataGameplayLogicPackage_Record
+      stackable: False
+      UIData:
+        $type: gamedataGameplayLogicPackageUIData_Record
+        localizedDescription: LocKey#OLP_FreefallOverride_Desc
+        floatValues: []
+        intValues: []
+        nameValues: []
+        stats: []
+      effectors: []
+      animationWrapperOverrides: []
+      stats:
+        - $type: ConstantStatModifier
+          modifierType: Additive
+          statType: BaseStats.OLP_SafeLandingEquipped
+          value: 1
+
+# ── Mantis Grab Module ───────────────────────────────────
+
+Items.OLP_PredatorsPerchModule:
+  $base: Items.Fragment
+  $props: AutoFlats
+  tags:
+    - PerkwareModule
+    - PerkwareUniqueStat
+    - OLP_MantisGrabEquipped
+
+  icon:
+    atlasResourcePath: olp\icons\olp_perk_icons.inkatlas
+    atlasPartName: assassination_area_01_perk2
+
+  parentAttachmentType: ParentAttachmentType.Slot
+
+  placementSlots:
+    - !append-once AttachmentSlots.CyberwareMod1
+    - !append-once AttachmentSlots.CyberwareMod2
+    - !append-once AttachmentSlots.CyberwareMod3
+    - !append-once AttachmentSlots.CyberwareMod4
+    - !append-once AttachmentSlots.CyberwareMod5
+
+  displayName: LocKey#OLP_PredatorsPerch_Name
+  localizedDescription: ""
+  quality: Quality.Uncommon
+
+  buyPrice:
+    - Price.CyberwareModBasePrice
+    - Price.BuyMultiplier
+    - Price.ItemQualityMultiplier
+    - Price.BuyPrice_StreetCred_Discount
+
+  sellPrice:
+    - Price.CyberwareModBasePrice
+    - Price.ItemQualityMultiplier
+    - Price.SellMultiplier
+
+  OnEquip:
+    - $type: gamedataGameplayLogicPackage_Record
+      stackable: False
+      UIData:
+        $type: gamedataGameplayLogicPackageUIData_Record
+        localizedDescription: LocKey#OLP_PredatorsPerch_Desc
+        floatValues: []
+        intValues: []
+        nameValues: []
+        stats: []
+      effectors: []
+      animationWrapperOverrides: []
+      stats:
+        - $type: ConstantStatModifier
+          modifierType: Additive
+          statType: BaseStats.OLP_MantisGrabEquipped
+          value: 1
+
+# ── Vendor Stock ─────────────────────────────────────────
+# Add all modules to every ripperdoc, available from level 1
+
+Vendors.OLP_Verticality:
+  $type: gamedataVendorItem_Record
+  generationPrereqs: []
+  item: Items.OLP_VerticalityModule
+  quantity: [ Vendors.Always_Present ]
+
+Vendors.OLP_GeckoGrip:
+  $type: gamedataVendorItem_Record
+  generationPrereqs: []
+  item: Items.OLP_GeckoGripModule
+  quantity: [ Vendors.Always_Present ]
+
+Vendors.OLP_Rebound:
+  $type: gamedataVendorItem_Record
+  generationPrereqs: []
+  item: Items.OLP_ReboundModule
+  quantity: [ Vendors.Always_Present ]
+
+Vendors.OLP_ParkourRoll:
+  $type: gamedataVendorItem_Record
+  generationPrereqs: []
+  item: Items.OLP_ParkourRollModule
+  quantity: [ Vendors.Always_Present ]
+
+Vendors.OLP_PredatorsPerch:
+  $type: gamedataVendorItem_Record
+  generationPrereqs: []
+  item: Items.OLP_PredatorsPerchModule
+  quantity: [ Vendors.Always_Present ]
+
+# Append to all ripperdoc inventories
+Vendors.$(vendor):
+  $instances:
+    - { vendor: bls_ina_se1_ripperdoc_01 }
+    - { vendor: cct_dtn_ripdoc_01 }
+    - { vendor: hey_spr_ripperdoc_01 }
+    - { vendor: pac_wwd_ripperdoc_01 }
+    - { vendor: std_arr_ripperdoc_01 }
+    - { vendor: std_rcr_ripperdoc_01 }
+    - { vendor: wat_kab_ripperdoc_01 }
+    - { vendor: wat_kab_ripperdoc_02 }
+    - { vendor: wat_kab_ripperdoc_03 }
+    - { vendor: wat_lch_ripperdoc_01 }
+    - { vendor: wat_nid_ripperdoc_01 }
+    - { vendor: wbr_hil_ripdoc_01 }
+    - { vendor: wbr_jpn_ripperdoc_01 }
+    - { vendor: wbr_jpn_ripperdoc_02 }
+    - { vendor: cz_stadium_ripperdoc_01 }
+    - { vendor: cz_monument_ripperdoc_anderson }
+    - { vendor: cz_monument_ripperdoc_farida }
+    - { vendor: cz_con_ripdoc_01 }
+
+  itemStock:
+    - !append Vendors.OLP_Verticality
+    - !append Vendors.OLP_GeckoGrip
+    - !append Vendors.OLP_Rebound
+    - !append Vendors.OLP_ParkourRoll
+    - !append Vendors.OLP_PredatorsPerch

@@ -109,6 +109,23 @@ local function hasEnoughStamina()
 end
 
 ---------------------------------------------------------------------------
+-- Integration gates (Perkware)
+---------------------------------------------------------------------------
+local function hasPerkwareStat(statEnum)
+    local ok, val = pcall(function()
+        return Game.GetStatsSystem():GetStatValue(wallState.player:GetEntityID(), statEnum) > 0
+    end)
+    return ok and val
+end
+
+local function isAbilityUnlocked(perkwareStatEnum)
+    if cfg.integratePerkware and not hasPerkwareStat(perkwareStatEnum) then
+        return false
+    end
+    return true
+end
+
+---------------------------------------------------------------------------
 -- Wall-run lifecycle helpers
 ---------------------------------------------------------------------------
 local function resetFallState()
@@ -164,6 +181,7 @@ end
 
 --- Transition to slide from any wall phase (stamina depletion or timer expiry).
 local function transitionToSlide()
+    if not isAbilityUnlocked(gamedataStatType.OLP_WallClimbEquipped) then return end
     wallState.targetZ = wallState.player:GetWorldPosition().z
     wallState.phase = "WALL_SLIDING"
     wallState.timer = wallState.slideBudget or cfg.wallSlideDuration
@@ -171,6 +189,7 @@ local function transitionToSlide()
 end
 
 local function enterWallRun(side, rayDir, wallNormal, isChain)
+    if not isAbilityUnlocked(gamedataStatType.OLP_WallRunEquipped) then return end
     resetFallState()
     wallState.phase    = "WALL_RUNNING"
     wallState.wallSide = side
@@ -320,6 +339,7 @@ beginLedgeMount = function(wallNormal)
 end
 
 enterWallClimb = function(wallNormal, isChain)
+    if not isAbilityUnlocked(gamedataStatType.OLP_WallClimbEquipped) then return end
     resetFallState()
     wallState.phase       = "WALL_CLIMBING"
     setClimbBlock(true)
@@ -347,6 +367,7 @@ enterWallClimb = function(wallNormal, isChain)
 end
 
 local function wallKick()
+    if not isAbilityUnlocked(gamedataStatType.OLP_WallKickEquipped) then return end
     local wn = wallState.wallNormal or Vector4.new(0, 0, 0, 0)
     wallState.lastKickWallNormal = wallState.wallNormal
     cleanupWallState()
@@ -359,6 +380,7 @@ local function wallKick()
 end
 
 beginWallJump = function(skipSound)
+    if not isAbilityUnlocked(gamedataStatType.OLP_WallKickEquipped) then return end
     drainStamina(STAMINA_WALL_KICK)
     wallState.suppressStaminaRegen = cfg.drainStamina
     Kerenzikov.pause()
@@ -377,6 +399,7 @@ beginWallJump = function(skipSound)
 end
 
 beginReverseHang = function()
+    if not isAbilityUnlocked(gamedataStatType.OLP_WallKickEquipped) then return end
     drainStamina(STAMINA_WALL_KICK)
     Helpers.playSound("w_gun_pistol_tech_kenshin_charge")
     wallState.wallClimbUsedThisJump = false

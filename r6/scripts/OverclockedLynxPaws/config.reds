@@ -235,11 +235,21 @@ public class WallRunSettings extends ScriptableSystem {
     @runtimeProperty("ModSettings.dependency", "enabled")
     public let unlimitedWallChains: Bool = false;
 
+    // ── Integrations ─────────────────────────────────────────────────────
+
+    @runtimeProperty("ModSettings.mod", "Overclocked Lynx Paws")
+    @runtimeProperty("ModSettings.category", "Integrations")
+    @runtimeProperty("ModSettings.category.order", "7")
+    @runtimeProperty("ModSettings.displayName", "Perkware")
+    @runtimeProperty("ModSettings.description", "Require Perkware modules equipped in cyberware to unlock each ability. Needs Perkware installed.")
+    @runtimeProperty("ModSettings.dependency", "enabled")
+    public let integratePerkware: Bool = false;
+
     // ── Debug ─────────────────────────────────────────────────────────────
 
     @runtimeProperty("ModSettings.mod", "Overclocked Lynx Paws")
     @runtimeProperty("ModSettings.category", "Debug")
-    @runtimeProperty("ModSettings.category.order", "7")
+    @runtimeProperty("ModSettings.category.order", "8")
     @runtimeProperty("ModSettings.displayName", "Debug Overlay")
     @runtimeProperty("ModSettings.description", "Show wall running state info on screen")
     @runtimeProperty("ModSettings.dependency", "enabled")
@@ -247,7 +257,7 @@ public class WallRunSettings extends ScriptableSystem {
 
     @runtimeProperty("ModSettings.mod", "Overclocked Lynx Paws")
     @runtimeProperty("ModSettings.category", "Debug")
-    @runtimeProperty("ModSettings.category.order", "7")
+    @runtimeProperty("ModSettings.category.order", "8")
     @runtimeProperty("ModSettings.displayName", "Enable CET Logs")
     @runtimeProperty("ModSettings.description", "Print detailed debug information to the CET console log")
     @runtimeProperty("ModSettings.dependency", "enabled")

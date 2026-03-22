@@ -27,6 +27,13 @@ end
 
 --- Initiate the safe landing roll sequence: cancel hard landing, force crouch, holster weapon, and begin forward roll.
 function SafeLanding.triggerSafeRoll(fallDist)
+    -- Perkware gate
+    if cfg.integratePerkware then
+        local ok, val = pcall(function()
+            return Game.GetStatsSystem():GetStatValue(wallState.player:GetEntityID(), gamedataStatType.OLP_SafeLandingEquipped) > 0
+        end)
+        if not (ok and val) then return end
+    end
     local bb = Helpers.getPlayerBlackboard()
     if bb then
         bb:SetInt(Game.GetAllBlackboardDefs().PlayerStateMachine.Fall, 0, true)

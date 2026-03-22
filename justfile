@@ -2,12 +2,17 @@ import? '.justfile.local'
 
 repo := justfile_directory()
 
-# Rebuild WallRunning.archive from localization source
+# Rebuild WallRunning.archive from localization source and icon assets
 archive:
     rm -rf "{{repo}}/build/WallRunning"
     mkdir -p "{{repo}}/build/WallRunning/wallrunning/localization"
     wolvenkit convert deserialize "{{repo}}/archive/pc/mod/localization-src/en-us.json.json" \
         -o "{{repo}}/build/WallRunning/wallrunning/localization"
+    mkdir -p "{{repo}}/build/WallRunning/olp/icons"
+    cp "{{repo}}/archive/pc/mod/olp-icons-src/olp/icons/olp_perk_icons.inkatlas" \
+       "{{repo}}/archive/pc/mod/olp-icons-src/olp/icons/olp_perk_icons.xbm" \
+       "{{repo}}/archive/pc/mod/olp-icons-src/olp/icons/olp_perk_icons_1080.xbm" \
+       "{{repo}}/build/WallRunning/olp/icons/"
     wolvenkit pack "{{repo}}/build/WallRunning" -o "{{repo}}/archive/pc/mod"
     rm -rf "{{repo}}/build/WallRunning"
     @echo "Rebuilt: archive/pc/mod/WallRunning.archive"
