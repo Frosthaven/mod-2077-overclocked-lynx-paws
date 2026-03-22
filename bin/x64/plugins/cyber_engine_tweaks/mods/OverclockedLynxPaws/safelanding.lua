@@ -2,6 +2,7 @@ local cfg = require("config").cfg
 local state = require("state")
 local wallState = state.wallState
 local Helpers = require("helpers")
+local input = require("input")
 
 local SafeLanding = {}
 
@@ -68,8 +69,8 @@ function SafeLanding.triggerSafeRoll(fallDist)
     wallState.crouchBufferTimer = 0
     -- Scale roll speed with fall height, but never slower than current horizontal speed
     local fd = math.max(fallDist or 3.0, 3.0)
-    local fallSpeed = math.min(25.0, 2.66 + (fd - 3.0) * 0.49)
-    local currentSpeed = Vector4.Length2D(wallState.player:GetVelocity())
+    local fallSpeed = math.min(33.0, 2.5 + (fd - 3.0) * 0.125)
+    local currentSpeed = Vector4.Length2D(wallState.player:GetVelocity()) * 0.5
     wallState.safeRollSpeed = math.max(fallSpeed, currentSpeed)
 end
 
@@ -121,27 +122,14 @@ function SafeLanding.updateRoll(dt)
                 wallState.safeRollShouldReequip = false
             end
         end
-        -- Teleport forward each frame with collision check
+        -- Per-frame forward impulse (dt-scaled for framerate independence)
         local d = wallState.safeRollDir
         if d then
-            local move = wallState.safeRollSpeed * dt
-            local pos = wallState.player:GetWorldPosition()
-            local origin = Vector4.new(pos.x, pos.y, pos.z + 0.5, 0)
-            local hit, _, hitDist = Helpers.raycast(origin, d, move + 0.3)
-            if hit then
-                move = math.max(0, hitDist - 0.3)
-            end
-            if move > 0 then
-                local nx, ny = pos.x + d.x * move, pos.y + d.y * move
-                local above = Vector4.new(nx, ny, pos.z + 1.0, 0)
-                local down = Vector4.new(0, 0, -1, 0)
-                local gHit, gPos = Helpers.raycast(above, down, 2.5)
-                local nz = gHit and gPos.z or pos.z
-                Game.GetTeleportationFacility():Teleport(
-                    wallState.player,
-                    Vector4.new(nx, ny, nz, 0),
-                    EulerAngles.new(0, 0, wallState.safeRollYaw))
-            end
+            local spd = wallState.safeRollSpeed * dt * 10.0
+            local imp = PSMImpulse.new()
+            imp.id = "impulse"
+            imp.impulse = Vector4.new(d.x * spd, d.y * spd, 0, 0)
+            wallState.player:QueueEvent(imp)
         end
         -- Camera pitch: 0.1s delay then full 360-degree forward roll
         -- Ease-in-out: slow at start and end, fast in the middle
@@ -179,27 +167,14 @@ end
 --- @param dt number Delta time in seconds.
 function SafeLanding.updateUncrouch(dt)
     if wallState.safeRollUncrouch then
-        -- Keep teleporting forward during uncrouch to prevent momentum gap
+        -- Keep pushing forward during uncrouch
         local d = wallState.safeRollDir
         if d and wallState.safeRollExitSpeed then
-            local move = wallState.safeRollExitSpeed * dt
-            local pos = wallState.player:GetWorldPosition()
-            local origin = Vector4.new(pos.x, pos.y, pos.z + 0.5, 0)
-            local hit, _, hitDist = Helpers.raycast(origin, d, move + 0.3)
-            if hit then
-                move = math.max(0, hitDist - 0.3)
-            end
-            if move > 0 then
-                local nx, ny = pos.x + d.x * move, pos.y + d.y * move
-                local above = Vector4.new(nx, ny, pos.z + 1.0, 0)
-                local down = Vector4.new(0, 0, -1, 0)
-                local gHit, gPos = Helpers.raycast(above, down, 2.5)
-                local nz = gHit and gPos.z or pos.z
-                Game.GetTeleportationFacility():Teleport(
-                    wallState.player,
-                    Vector4.new(nx, ny, nz, 0),
-                    EulerAngles.new(0, 0, wallState.safeRollYaw))
-            end
+            local spd = wallState.safeRollExitSpeed * dt
+            local imp = PSMImpulse.new()
+            imp.id = "impulse"
+            imp.impulse = Vector4.new(d.x * spd, d.y * spd, 0, 0)
+            wallState.player:QueueEvent(imp)
         end
 
         wallState.safeRollUncrouch = wallState.safeRollUncrouch - dt
@@ -212,7 +187,7 @@ function SafeLanding.updateUncrouch(dt)
             if qs then qs:SetFact(CName.new("wr_uncrouch"), 1) end
             wallState.safeRollUncrouch = nil
             Helpers.playSound("ono_v_effort_short")
-            -- Fire exit impulse + force sprint simultaneously
+            -- Fire exit impulse
             if d and wallState.safeRollExitSpeed then
                 local spd = wallState.safeRollExitSpeed
                 local imp = PSMImpulse.new()
@@ -220,10 +195,13 @@ function SafeLanding.updateUncrouch(dt)
                 imp.impulse = Vector4.new(d.x * spd, d.y * spd, 0, 0)
                 wallState.player:QueueEvent(imp)
             end
+            -- Force sprint if holding sprint
+            if input.pressingSprint then
+                local qs2 = Game.GetQuestsSystem()
+                if qs2 then qs2:SetFact(CName.new("wr_sprint"), 1) end
+            end
             wallState.safeRollExitSpeed = nil
             wallState.safeRollDir = nil
-            local qs2 = Game.GetQuestsSystem()
-            if qs2 then qs2:SetFact(CName.new("wr_sprint"), 1) end
         end
     end
 end
