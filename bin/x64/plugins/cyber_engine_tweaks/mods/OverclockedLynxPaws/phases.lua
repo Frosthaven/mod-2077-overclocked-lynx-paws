@@ -121,7 +121,11 @@ end
 
 local function setClimbBlock(block)
     local qs = Game.GetQuestsSystem()
-    if qs then qs:SetFact(CName.new("wr_wall_active"), block and 1 or 0) end
+    if qs then
+        qs:SetFact(CName.new("wr_wall_active"), block and 1 or 0)
+        -- Signal Redscript to reset the double jump counter on wall entry
+        if block then qs:SetFact(CName.new("wr_reset_jumps"), 1) end
+    end
 end
 
 --- Shared cleanup for all wall exit paths.

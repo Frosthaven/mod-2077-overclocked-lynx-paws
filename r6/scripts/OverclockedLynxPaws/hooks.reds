@@ -120,7 +120,14 @@ protected func OnUpdate(timeDelta: Float, stateContext: ref<StateContext>, scrip
         return;
     }
 
-    if GameInstance.GetQuestsSystem(player.GetGame()).GetFact(n"wr_safe_land") <= 0 {
+    // Reset double jump counter when signalled by wall run/climb entry
+    let qs = GameInstance.GetQuestsSystem(player.GetGame());
+    if qs.GetFact(n"wr_reset_jumps") > 0 {
+        stateContext.SetPermanentIntParameter(n"currentNumberOfJumps", 0, true);
+        qs.SetFact(n"wr_reset_jumps", 0);
+    }
+
+    if qs.GetFact(n"wr_safe_land") <= 0 {
         return;
     }
 
