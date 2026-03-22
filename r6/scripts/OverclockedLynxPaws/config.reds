@@ -172,10 +172,10 @@ public class WallRunSettings extends ScriptableSystem {
     @runtimeProperty("ModSettings.displayName", "Opportunity Window")
     @runtimeProperty("ModSettings.description", "How long before landing you can press crouch to trigger a safe roll landing (seconds)")
     @runtimeProperty("ModSettings.step", "0.1")
-    @runtimeProperty("ModSettings.min", "0.0")
+    @runtimeProperty("ModSettings.min", "0.3")
     @runtimeProperty("ModSettings.max", "20.0")
     @runtimeProperty("ModSettings.dependency", "enabled")
-    public let safeLandWindow: Float = 0.30;
+    public let safeLandWindow: Float = 0.40;
 
     @runtimeProperty("ModSettings.mod", "Overclocked Lynx Paws")
     @runtimeProperty("ModSettings.category", "Safe Landing")
