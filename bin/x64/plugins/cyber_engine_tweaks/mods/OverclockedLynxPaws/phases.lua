@@ -148,6 +148,8 @@ local function cleanupWallState()
     wallState.mantisGrabThrust = nil
     end
     Kerenzikov.deactivate()
+    -- Soft camera reset: let IDLE lerp smoothly unroll
+    camera.targetTilt = 0
     Helpers.stopSound("lcm_fs_additional_tiles_slide")
     setClimbBlock(false)
     wallState.climbPeakHoldTimer = nil
@@ -339,6 +341,7 @@ enterWallClimb = function(wallNormal, isChain)
     camera.targetTilt = 0
     camera.rollBlendProgress = 0
     camera.tilt       = 0
+    Helpers.applyCameraRoll(0)
     camera.trackedYaw   = wallState.player:GetWorldYaw()
     camera.pendingMouseDeltaX = 0
 
@@ -890,9 +893,7 @@ local function updateWallClimbing(dt, airborne, dashCancel, LynxPaw)
     local hitCeiling, _, ceilDist = Helpers.raycast(headOrigin, upDir, 0.5)
 
     if hitCeiling then
-        wallState.phase = "IDLE"
-        setClimbBlock(false)
-        wallState.wallNormal = nil
+        cleanupWallState()
         wallState.snapTimer = 4.0
         Helpers.playSound("lcm_wallrun_out")
         return
@@ -1050,6 +1051,12 @@ local function updateWallSliding(dt, airborne, dashCancel, LynxPaw)
         wallState.player, newPos,
         EulerAngles.new(0, 0, camera.trackedYaw)
     )
+
+    -- Smoothly unroll camera tilt during slide
+    if math.abs(camera.tilt) > 0.01 then
+        camera.tilt = Helpers.lerpAngle(camera.tilt, 0, cfg.cameraLerpSpeed, dt)
+        Helpers.applyCameraRoll(camera.tilt)
+    end
 end
 
 local function updateReverseWallHang(dt, airborne, dashCancel, LynxPaw)
@@ -1427,6 +1434,7 @@ local function updateAirHover(dt, airborne, dashCancel, LynxPaw)
             wallState.player:GetEntityID(), TweakDBID.new("BaseStatusEffect.KerenzikovPlayerBuff"))
         if wallState.hoverTimer >= hoverDuration or buffGone then
             Kerenzikov.deactivate()
+            camera.targetTilt = 0
             wallState.phase = "IDLE"
         end
     end
@@ -1665,6 +1673,10 @@ function Phases.update(dt, syncSettings, LynxPaw)
             wallState.airPeakZ = z
         end
     else
+        -- Ensure camera unrolls on landing
+        if wallState.airborneTime > 0 then
+            camera.targetTilt = 0
+        end
         wallState.airborneTime = 0
         wallState.airPeakZ = nil
         wallState.wallRunUsedThisJump = false
