@@ -31,6 +31,8 @@ local wallState = {
     isClimbBlocked     = false,  -- quest fact is active blocking game climb
     climbPeakHoldTimer = nil,    -- countdown before transitioning out of climb peak
     climbEntryDeg      = nil,    -- approach angle at climb entry (debug)
+    wallTransitionUsed = false,  -- only one climb↔run transition per wall contact
+    pendingTransition  = nil,    -- "run" or "climb" — deferred transition after aim hold
 
     -- Wall jump aim hold position
     aimHoldX = nil,              -- X position to hold during aim phase

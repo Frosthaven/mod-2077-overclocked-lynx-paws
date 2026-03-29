@@ -156,12 +156,15 @@ local function cleanupWallState()
     wallState.wallLostTimer = nil
     wallState.phase        = "IDLE"
     wallState.wallSide     = nil
+    wallState.lastKickWallNormal = wallState.wallNormal or wallState.lastKickWallNormal
     wallState.wallNormal   = nil
     wallState.wallRunDir   = nil
     wallState.kickDirection = nil
     wallState.timer        = 0
     wallState.cooldown     = 0
     wallState.wallPathDist = 0
+    wallState.pendingTransition = nil
+    wallState.wallTransitionUsed = false
 end
 
 --- Transition to slide from any wall phase (stamina depletion or timer expiry).
@@ -221,6 +224,43 @@ end
 -- Forward declarations for mutual references
 local enterWallClimb, beginLedgeMount, beginWallJump, beginReverseHang, beginExitPush, beginMantisGrab, endMantisGrab
 
+--- Check camera angle against wall normal and return the transition type.
+--- @param wn Vector4 The wall normal to check against.
+--- @return string|nil "climb", "run", or nil if no transition is valid.
+local function getWallTransition(wn)
+    if wallState.wallTransitionUsed or not wn then return nil end
+    local fwd = Game.GetCameraSystem():GetActiveCameraForward()
+    local fwdFlat = Vector4.Normalize(Vector4.new(fwd.x, fwd.y, 0, 0))
+    local lookDot = fwdFlat.x * wn.x + fwdFlat.y * wn.y
+    if lookDot >= 0 then return nil end -- wall behind camera
+    local lookDeg = math.deg(math.acos(math.max(-1, math.min(1, math.abs(lookDot)))))
+    if lookDeg < cfg.wallRunEntryAngle and not wallState.wallClimbUsedThisJump then
+        return "climb"
+    elseif lookDeg >= cfg.wallRunEntryAngle and not wallState.wallRunUsedThisJump then
+        return "run"
+    end
+    return nil
+end
+
+--- Execute a wall transition immediately (no aim hold).
+--- @param wn Vector4 The wall normal.
+--- @param transition string "climb" or "run".
+local function executeWallTransition(wn, transition)
+    wallState.wallTransitionUsed = true
+    if transition == "climb" then
+        wallState.timer = 0
+        enterWallClimb(wn, true)
+        wallState.timer = math.min(wallState.timer + cfg.chainBonusDuration, cfg.wallClimbDuration)
+    elseif transition == "run" then
+        local camRight = Helpers.getCameraRightDirection()
+        local rayDir = Vector4.new(-wn.x, -wn.y, 0, 0)
+        local dot = rayDir.x * camRight.x + rayDir.y * camRight.y
+        local side = (dot > 0) and "right" or "left"
+        enterWallRun(side, rayDir, wn, true)
+        wallState.timer = math.min(wallState.timer + cfg.chainBonusDuration, cfg.wallRunDuration)
+    end
+end
+
 local function tryChainWall(kickDir)
     if not cfg.unlimitedWallChains and wallState.chainCount >= cfg.maxWallChains then
         Helpers.logDebug("[Chain] BLOCKED: max chains reached")
@@ -245,13 +285,14 @@ local function tryChainWall(kickDir)
     end
 
     wallState.chainCount = wallState.chainCount + 1
+    wallState.wallTransitionUsed = false
+    wallState.wallRunUsedThisJump = false
+    wallState.wallClimbUsedThisJump = false
     if action == "climb" then
-        wallState.wallClimbUsedThisJump = false
         wallState.climbEntryDeg = deg
         enterWallClimb(wallN, true)
         wallState.timer = math.min(wallState.timer + cfg.chainBonusDuration, cfg.wallClimbDuration)
     else
-        wallState.wallRunUsedThisJump = false
         enterWallRun(side, rayDir, wallN, true)
         wallState.timer = math.min(wallState.timer + cfg.chainBonusDuration, cfg.wallRunDuration)
     end
@@ -502,18 +543,12 @@ endMantisGrab = function(doJump)
         Helpers.resetCameraRoll()
 
         local wn = wallState.lastKickWallNormal
-        if wn and not wallState.wallClimbUsedThisJump then
-            local fwdFlat = Vector4.Normalize(Vector4.new(fwd.x, fwd.y, 0, 0))
-            local lookDot = fwdFlat.x * wn.x + fwdFlat.y * wn.y
-            local lookDeg = math.deg(math.acos(math.max(-1, math.min(1, -lookDot))))
-            if lookDot < 0 and lookDeg <= cfg.wallRunEntryAngle then
-                Kerenzikov.deactivate()
-                wallState.aimHoldZ = nil
-                wallState.lastKickWallNormal = nil
-                wallState.climbEntryDeg = lookDeg
-                enterWallClimb(wn)
-                return
-            end
+        local transition = getWallTransition(wn)
+        if transition then
+            Kerenzikov.deactivate()
+            wallState.aimHoldZ = nil
+            executeWallTransition(wn, transition)
+            return
         end
 
         local force = cfg.wallKickForce
@@ -566,6 +601,8 @@ local function updateIdle(dt, airborne, dashCancel, LynxPaw)
                     wallState.chainScanDirection = nil
                     wallState.chainCount = wallState.chainCount + 1
                     wallState.wallRunUsedThisJump = false
+                    wallState.wallClimbUsedThisJump = false
+                    wallState.wallTransitionUsed = false
                     enterWallRun(side, sideRayDir, wallN, true)
                     wallState.timer = math.min(wallState.timer + cfg.chainBonusDuration, cfg.wallRunDuration)
                     return
@@ -634,9 +671,15 @@ local function updateIdle(dt, airborne, dashCancel, LynxPaw)
             Helpers.logDebug("[IDLE] rejected: not enough stamina")
         elseif action == "climb" then
             Helpers.logDebug(string.format("[IDLE] => enterWallClimb deg=%.1f", deg))
+            wallState.wallTransitionUsed = false
+            wallState.wallRunUsedThisJump = false
+            wallState.wallClimbUsedThisJump = false
             wallState.climbEntryDeg = deg
             enterWallClimb(wallN)
         elseif action == "run" then
+            wallState.wallTransitionUsed = false
+            wallState.wallRunUsedThisJump = false
+            wallState.wallClimbUsedThisJump = false
             Helpers.logDebug(string.format("[IDLE] => enterWallRun side=%s", side))
             enterWallRun(side, rayDir, wallN)
         end
@@ -654,6 +697,17 @@ local function updateWallRunning(dt, airborne, dashCancel, LynxPaw)
     if input.pressingBack and input.jumpJustPressed and hasEnoughStamina() then
         beginReverseHang()
         return
+    end
+
+    -- Run → Climb/Run transition: jump while looking at wall → enter aim hold first
+    if input.jumpJustPressed and hasEnoughStamina() then
+        local transition = getWallTransition(wallState.wallNormal)
+        if transition then
+            wallState.pendingTransition = transition
+            wallState.wallTransitionUsed = true
+            beginWallJump()
+            return
+        end
     end
 
     if input.jumpJustPressed and hasEnoughStamina() then
@@ -899,6 +953,17 @@ local function updateWallClimbing(dt, airborne, dashCancel, LynxPaw)
     if input.pressingBack and input.jumpJustPressed and hasEnoughStamina() then
         beginReverseHang()
         return
+    end
+
+    -- Climb → Run/Climb transition: jump while looking at wall → enter aim hold first
+    if input.jumpJustPressed and hasEnoughStamina() then
+        local transition = getWallTransition(wallState.wallNormal)
+        if transition then
+            wallState.pendingTransition = transition
+            wallState.wallTransitionUsed = true
+            beginWallJump()
+            return
+        end
     end
 
     if input.jumpJustPressed and hasEnoughStamina() then
@@ -1193,6 +1258,25 @@ local function updateWallJumpAim(dt, airborne, dashCancel, LynxPaw)
     end
 
     if (not cfg.unlimitedHangtime and wallState.phaseTimer >= aimDuration) or (input.jumpJustPressed and wallState.phaseTimer > 0.1) then
+        -- Pending wall transition: execute instead of kicking
+        if wallState.pendingTransition then
+            local transition = wallState.pendingTransition
+            wallState.pendingTransition = nil
+            local wn = wallState.lastKickWallNormal
+            if wn then
+                Helpers.resetCameraRoll()
+                Kerenzikov.deactivate()
+                wallState.aimHoldZ = nil
+                -- Refund stamina drained by beginWallJump — transition isn't a kick
+                local sps = Game.GetStatPoolsSystem()
+                if sps then
+                    sps:RequestChangingStatPoolValue(wallState.player:GetEntityID(), gamedataStatPoolType.Stamina, STAMINA_WALL_KICK, nil, false, false)
+                end
+                executeWallTransition(wn, transition)
+            end
+            return
+        end
+
         local fwd = Game.GetCameraSystem():GetActiveCameraForward()
         -- If unroll finished, snap-reset; otherwise let IDLE lerp finish it
         if t >= 1.0 then
@@ -1730,6 +1814,7 @@ function Phases.update(dt, syncSettings, LynxPaw)
         wallState.wallRunUsedThisJump = false
         wallState.crouchBufferUsed = false
         wallState.wallClimbUsedThisJump = false
+        wallState.wallTransitionUsed = false
         wallState.lastKickWallNormal = nil
         wallState.chainCount = 0
         wallState.slideBudget = cfg.wallSlideDuration
