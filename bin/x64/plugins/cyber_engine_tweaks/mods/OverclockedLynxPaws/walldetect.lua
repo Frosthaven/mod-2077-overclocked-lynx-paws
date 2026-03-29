@@ -60,13 +60,28 @@ function WallDetect.detectForwardWall(maxDist, dotThreshold)
     local origin = Helpers.getPlayerHipPosition()
     local fwd = Game.GetCameraSystem():GetActiveCameraForward()
     local fwdFlat = Vector4.Normalize(Vector4.new(fwd.x, fwd.y, 0, 0))
-    local hit, hitPos, dist = Helpers.raycast(origin, fwdFlat, maxDist)
-    if hit then
-        local wallNormal = WallDetect.calculateWallNormal(origin, hitPos)
-        local dot = fwdFlat.x * wallNormal.x + fwdFlat.y * wallNormal.y
-        if dot < dotThreshold then
-            return true, wallNormal, dist
+    local lateral = Vector4.new(-fwdFlat.y, fwdFlat.x, 0, 0)
+
+    -- Multi-probe: center + left/right offsets to avoid recess edges
+    local bestDot, bestNormal, bestDist = 0, nil, 999
+    for _, offset in ipairs({0, -0.3, 0.3}) do
+        local probeOrigin = Vector4.new(
+            origin.x + lateral.x * offset,
+            origin.y + lateral.y * offset,
+            origin.z, 0)
+        local hit, hitPos, dist = Helpers.raycast(probeOrigin, fwdFlat, maxDist)
+        if hit then
+            local wallNormal = WallDetect.calculateWallNormal(probeOrigin, hitPos)
+            local dot = fwdFlat.x * wallNormal.x + fwdFlat.y * wallNormal.y
+            if dot < dotThreshold and dot < bestDot then
+                bestDot = dot
+                bestNormal = wallNormal
+                bestDist = dist
+            end
         end
+    end
+    if bestNormal then
+        return true, bestNormal, bestDist
     end
     return false, nil, 999
 end
@@ -188,20 +203,20 @@ function WallDetect.classifyWallAction(vel)
         return nil
     end
     local approachDeg = math.deg(math.acos(math.max(-1, math.min(1, math.abs(velDot)))))
-    Helpers.logDebug(string.format("[WallAction] RUN check: approachDeg=%.1f velDot=%.3f threshold=%.1f",
-        approachDeg, velDot, cfg.wallRunEntryAngle))
-    if approachDeg >= cfg.wallRunEntryAngle then
+    -- Also check camera look angle: if looking head-on (within climb window), don't allow run
+    local lookDeg = math.deg(math.acos(math.max(-1, math.min(1, math.abs(lookDotWall)))))
+    Helpers.logDebug(string.format("[WallAction] RUN check: approachDeg=%.1f lookDeg=%.1f velDot=%.3f threshold=%.1f",
+        approachDeg, lookDeg, velDot, cfg.wallRunEntryAngle))
+    if approachDeg >= cfg.wallRunEntryAngle and lookDeg >= cfg.wallRunEntryAngle then
         Helpers.logDebug(string.format("[WallAction] => RUN side=%s", side))
         return "run", side, rayDir, wallN, approachDeg
     end
 
-    -- 3) Dead zone fallback: velocity too head-on for wall run, but camera outside
-    -- climb window. Heading into a wall → treat as climb.
-    if velDot < -0.3 or input.pressingSprint then
-        local lookDot = fwdFlat.x * wallN.x + fwdFlat.y * wallN.y
-        local fallbackDeg = math.deg(math.acos(math.max(-1, math.min(1, math.abs(lookDot)))))
-        Helpers.logDebug(string.format("[WallAction] => CLIMB (dead zone fallback) deg=%.1f", fallbackDeg))
-        return "climb", nil, nil, wallN, fallbackDeg
+    -- 3) Dead zone fallback: velocity too head-on for wall run, or camera
+    -- within climb window. Heading into a wall → treat as climb.
+    if velDot < -0.3 or input.pressingSprint or lookDeg < cfg.wallRunEntryAngle then
+        Helpers.logDebug(string.format("[WallAction] => CLIMB (dead zone fallback) lookDeg=%.1f", lookDeg))
+        return "climb", nil, nil, wallN, lookDeg
     end
 
     Helpers.logDebug(string.format("[WallAction] => NIL (approachDeg=%.1f < threshold, not moving toward wall)", approachDeg))

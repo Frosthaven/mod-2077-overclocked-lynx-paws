@@ -737,8 +737,16 @@ local function updateWallRunning(dt, airborne, dashCancel, LynxPaw)
             Helpers.logDebug(string.format("[WR_EXIT] %s grace=%.3f", lostReason, wallState.wallLostTimer))
             local dir = wallState.wallRunDir
             local speed = getWallRunSpeed()
+            local isObstacle = lostReason and lostReason:find("obstacle")
+            local wn = wallState.wallNormal
             exitWallRun()
-            if dir and speed then
+            if isObstacle and wn then
+                Helpers.queueImpulse(Vector4.new(
+                    wn.x * speed * 0.5,
+                    wn.y * speed * 0.5,
+                    0, 0))
+            elseif dir and speed then
+                -- Wall ending: carry momentum along wall, allow chaining
                 Helpers.queueWallKick(Vector4.new(
                     dir.x * speed,
                     dir.y * speed,
@@ -827,6 +835,18 @@ local function updateWallRunning(dt, airborne, dashCancel, LynxPaw)
 
     local newPos = Vector4.new(baseX, baseY, wallState.targetZ, 1)
 
+    -- Forward collision check: prevent teleporting into corners
+    local moveDir = Vector4.Normalize(Vector4.new(baseX - pos.x, baseY - pos.y, 0, 0))
+    local moveDist = Vector4.Length2D(Vector4.new(baseX - pos.x, baseY - pos.y, 0, 0))
+    if moveDist > 0.01 then
+        local fwdOrigin = Vector4.new(pos.x, pos.y, pos.z + 0.5, 0)
+        local hitFwd, _, hitFwdDist = Helpers.raycast(fwdOrigin, moveDir, moveDist + 0.3)
+        if hitFwd and hitFwdDist < moveDist + 0.2 then
+            exitWallRun()
+            return
+        end
+    end
+
     Helpers.queueImpulse(Vector4.new(0, 0, 0, 0))
     camera.trackedYaw = camera.trackedYaw - Helpers.consumeAimYaw(dt)
 
@@ -893,7 +913,11 @@ local function updateWallClimbing(dt, airborne, dashCancel, LynxPaw)
     local hitCeiling, _, ceilDist = Helpers.raycast(headOrigin, upDir, 0.5)
 
     if hitCeiling then
-        cleanupWallState()
+        if wallState.slideBudget and wallState.slideBudget > 0 then
+            transitionToSlide()
+        else
+            cleanupWallState()
+        end
         wallState.snapTimer = 4.0
         Helpers.playSound("lcm_wallrun_out")
         return
@@ -964,6 +988,18 @@ local function updateWallClimbing(dt, airborne, dashCancel, LynxPaw)
     else
         beginLedgeMount(wallState.wallNormal)
         return
+    end
+
+    -- Forward collision check: prevent clipping into corners
+    local moveDir = Vector4.Normalize(Vector4.new(newPos.x - pos.x, newPos.y - pos.y, 0, 0))
+    local moveDist = Vector4.Length2D(Vector4.new(newPos.x - pos.x, newPos.y - pos.y, 0, 0))
+    if moveDist > 0.01 then
+        local fwdOrigin = Vector4.new(pos.x, pos.y, pos.z + 0.5, 0)
+        local hitFwd, _, hitFwdDist = Helpers.raycast(fwdOrigin, moveDir, moveDist + 0.3)
+        if hitFwd and hitFwdDist < moveDist + 0.2 then
+            cleanupWallState()
+            return
+        end
     end
 
     Helpers.queueImpulse(Vector4.new(0, 0, 0, 0))
@@ -1043,6 +1079,18 @@ local function updateWallSliding(dt, airborne, dashCancel, LynxPaw)
         wallState.targetZ,
         1
     )
+
+    -- Forward collision check: prevent clipping into corners
+    local moveDir = Vector4.Normalize(Vector4.new(newPos.x - pos.x, newPos.y - pos.y, 0, 0))
+    local moveDist = Vector4.Length2D(Vector4.new(newPos.x - pos.x, newPos.y - pos.y, 0, 0))
+    if moveDist > 0.01 then
+        local fwdOrigin = Vector4.new(pos.x, pos.y, pos.z + 0.5, 0)
+        local hitFwd, _, hitFwdDist = Helpers.raycast(fwdOrigin, moveDir, moveDist + 0.3)
+        if hitFwd and hitFwdDist < moveDist + 0.2 then
+            slideExit()
+            return
+        end
+    end
 
     Helpers.queueImpulse(Vector4.new(0, 0, 0, 0))
     camera.trackedYaw = camera.trackedYaw - Helpers.consumeAimYaw(dt)
