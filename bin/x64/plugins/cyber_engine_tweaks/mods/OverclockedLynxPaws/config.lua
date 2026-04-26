@@ -3,7 +3,8 @@ local cfg = {
     debugEnabled      = false,
     cetLogsEnabled    = false,
     requireLynxPaws   = true,   -- gate wall running on Lynx Paw cyberware
-    wallRunSpeed      = 6.0,
+    wallRunSpeed      = 7.0, -- min wall run speed (m/s); entry speed decays toward this
+    wallClimbSpeed    = 6.0, -- vertical speed during wall climb (m/s)
     unlimitedWallRun    = false,
     wallRunDuration   = 1.5,
     riseSpeed         = 2.0,
@@ -48,7 +49,7 @@ local syncFields = {
     "unlimitedWallRun", "unlimitedWallClimb", "unlimitedWallSlide",
     "unlimitedHangtime", "unlimitedWallChains",
     "gainShinobiSkill", "requireSprint", "drainStamina", "staminaScalesShinobi", "wallRunEntryAngle",
-    "useNaturalSounds",
+    "useNaturalSounds", "wallRunSpeed", "wallClimbSpeed",
 }
 
 --- Synchronize mod configuration values from the Redscript WallRunSettings scriptable system.

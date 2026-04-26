@@ -85,17 +85,6 @@ public class WallRunSettings extends ScriptableSystem {
     @runtimeProperty("ModSettings.mod", "Overclocked Lynx Paws")
     @runtimeProperty("ModSettings.category", "Wall Run")
     @runtimeProperty("ModSettings.category.order", "3")
-    @runtimeProperty("ModSettings.displayName", "Wall Climb Duration")
-    @runtimeProperty("ModSettings.description", "How long you can climb a wall (seconds)")
-    @runtimeProperty("ModSettings.step", "0.25")
-    @runtimeProperty("ModSettings.min", "0.25")
-    @runtimeProperty("ModSettings.max", "5.0")
-    @runtimeProperty("ModSettings.dependency", "enabled")
-    public let wallClimbDuration: Float = 0.50;
-
-    @runtimeProperty("ModSettings.mod", "Overclocked Lynx Paws")
-    @runtimeProperty("ModSettings.category", "Wall Run")
-    @runtimeProperty("ModSettings.category.order", "3")
     @runtimeProperty("ModSettings.displayName", "Wall Slide Duration")
     @runtimeProperty("ModSettings.description", "How long you slide down a wall before dropping (seconds)")
     @runtimeProperty("ModSettings.step", "0.25")
@@ -126,11 +115,46 @@ public class WallRunSettings extends ScriptableSystem {
     @runtimeProperty("ModSettings.dependency", "enabled")
     public let cameraTilt: Float = 21.0;
 
+    @runtimeProperty("ModSettings.mod", "Overclocked Lynx Paws")
+    @runtimeProperty("ModSettings.category", "Wall Run")
+    @runtimeProperty("ModSettings.category.order", "3")
+    @runtimeProperty("ModSettings.displayName", "Run Speed")
+    @runtimeProperty("ModSettings.description", "Base wall run speed in m/s. Faster entry velocity is preserved and decays toward this floor over ~2s.")
+    @runtimeProperty("ModSettings.step", "0.5")
+    @runtimeProperty("ModSettings.min", "2.0")
+    @runtimeProperty("ModSettings.max", "25.0")
+    @runtimeProperty("ModSettings.dependency", "enabled")
+    public let wallRunSpeed: Float = 7.0;
+
+    // ── Wall Climb ───────────────────────────────────────────────────────
+
+    @runtimeProperty("ModSettings.mod", "Overclocked Lynx Paws")
+    @runtimeProperty("ModSettings.category", "Wall Climb")
+    @runtimeProperty("ModSettings.category.order", "4")
+    @runtimeProperty("ModSettings.displayName", "Wall Climb Duration")
+    @runtimeProperty("ModSettings.description", "How long you can climb a wall (seconds)")
+    @runtimeProperty("ModSettings.step", "0.25")
+    @runtimeProperty("ModSettings.min", "0.25")
+    @runtimeProperty("ModSettings.max", "5.0")
+    @runtimeProperty("ModSettings.dependency", "enabled")
+    public let wallClimbDuration: Float = 0.50;
+
+    @runtimeProperty("ModSettings.mod", "Overclocked Lynx Paws")
+    @runtimeProperty("ModSettings.category", "Wall Climb")
+    @runtimeProperty("ModSettings.category.order", "4")
+    @runtimeProperty("ModSettings.displayName", "Climb Speed")
+    @runtimeProperty("ModSettings.description", "Vertical speed (m/s) while wall climbing")
+    @runtimeProperty("ModSettings.step", "0.5")
+    @runtimeProperty("ModSettings.min", "1.0")
+    @runtimeProperty("ModSettings.max", "15.0")
+    @runtimeProperty("ModSettings.dependency", "enabled")
+    public let wallClimbSpeed: Float = 6.0;
+
     // ── Wall Jump ────────────────────────────────────────────────────────
 
     @runtimeProperty("ModSettings.mod", "Overclocked Lynx Paws")
     @runtimeProperty("ModSettings.category", "Wall Jump")
-    @runtimeProperty("ModSettings.category.order", "4")
+    @runtimeProperty("ModSettings.category.order", "5")
     @runtimeProperty("ModSettings.displayName", "Wall Hangtime")
     @runtimeProperty("ModSettings.description", "How long to hold position before kicking off the wall (seconds)")
     @runtimeProperty("ModSettings.step", "0.25")
@@ -141,7 +165,7 @@ public class WallRunSettings extends ScriptableSystem {
 
     @runtimeProperty("ModSettings.mod", "Overclocked Lynx Paws")
     @runtimeProperty("ModSettings.category", "Wall Jump")
-    @runtimeProperty("ModSettings.category.order", "4")
+    @runtimeProperty("ModSettings.category.order", "5")
     @runtimeProperty("ModSettings.displayName", "Wall Kick Force")
     @runtimeProperty("ModSettings.description", "How fast and far the wall kick launches you")
     @runtimeProperty("ModSettings.step", "0.5")
@@ -152,7 +176,7 @@ public class WallRunSettings extends ScriptableSystem {
 
     @runtimeProperty("ModSettings.mod", "Overclocked Lynx Paws")
     @runtimeProperty("ModSettings.category", "Wall Jump")
-    @runtimeProperty("ModSettings.category.order", "4")
+    @runtimeProperty("ModSettings.category.order", "5")
     @runtimeProperty("ModSettings.displayName", "Max Wall Chains")
     @runtimeProperty("ModSettings.description", "How many wall-to-wall chains are allowed per airborne period")
     @runtimeProperty("ModSettings.step", "1")
@@ -163,7 +187,7 @@ public class WallRunSettings extends ScriptableSystem {
 
     @runtimeProperty("ModSettings.mod", "Overclocked Lynx Paws")
     @runtimeProperty("ModSettings.category", "Wall Jump")
-    @runtimeProperty("ModSettings.category.order", "4")
+    @runtimeProperty("ModSettings.category.order", "5")
     @runtimeProperty("ModSettings.displayName", "Chain Bonus Duration")
     @runtimeProperty("ModSettings.description", "Extra wall time (seconds) added when chaining to a new wall")
     @runtimeProperty("ModSettings.step", "0.25")
@@ -176,7 +200,7 @@ public class WallRunSettings extends ScriptableSystem {
 
     @runtimeProperty("ModSettings.mod", "Overclocked Lynx Paws")
     @runtimeProperty("ModSettings.category", "Safe Landing")
-    @runtimeProperty("ModSettings.category.order", "5")
+    @runtimeProperty("ModSettings.category.order", "6")
     @runtimeProperty("ModSettings.displayName", "Opportunity Window")
     @runtimeProperty("ModSettings.description", "How long before landing you can press crouch to trigger a safe roll landing (seconds)")
     @runtimeProperty("ModSettings.step", "0.1")
@@ -187,7 +211,7 @@ public class WallRunSettings extends ScriptableSystem {
 
     @runtimeProperty("ModSettings.mod", "Overclocked Lynx Paws")
     @runtimeProperty("ModSettings.category", "Safe Landing")
-    @runtimeProperty("ModSettings.category.order", "5")
+    @runtimeProperty("ModSettings.category.order", "6")
     @runtimeProperty("ModSettings.displayName", "Always Safely Land")
     @runtimeProperty("ModSettings.description", "Automatically perform a safe roll on any damaging fall. Fatal heights still require Survive Any Height.")
     @runtimeProperty("ModSettings.dependency", "enabled")
@@ -195,7 +219,7 @@ public class WallRunSettings extends ScriptableSystem {
 
     @runtimeProperty("ModSettings.mod", "Overclocked Lynx Paws")
     @runtimeProperty("ModSettings.category", "Safe Landing")
-    @runtimeProperty("ModSettings.category.order", "5")
+    @runtimeProperty("ModSettings.category.order", "6")
     @runtimeProperty("ModSettings.displayName", "Survive Any Height")
     @runtimeProperty("ModSettings.description", "Allow safe landing even from normally lethal fall heights")
     @runtimeProperty("ModSettings.dependency", "enabled")
@@ -205,7 +229,7 @@ public class WallRunSettings extends ScriptableSystem {
 
     @runtimeProperty("ModSettings.mod", "Overclocked Lynx Paws")
     @runtimeProperty("ModSettings.category", "Can't Get Enough?")
-    @runtimeProperty("ModSettings.category.order", "6")
+    @runtimeProperty("ModSettings.category.order", "7")
     @runtimeProperty("ModSettings.displayName", "Unlimited Wall Run")
     @runtimeProperty("ModSettings.description", "Wall run never times out")
     @runtimeProperty("ModSettings.dependency", "enabled")
@@ -213,7 +237,7 @@ public class WallRunSettings extends ScriptableSystem {
 
     @runtimeProperty("ModSettings.mod", "Overclocked Lynx Paws")
     @runtimeProperty("ModSettings.category", "Can't Get Enough?")
-    @runtimeProperty("ModSettings.category.order", "6")
+    @runtimeProperty("ModSettings.category.order", "7")
     @runtimeProperty("ModSettings.displayName", "Unlimited Wall Climb")
     @runtimeProperty("ModSettings.description", "Wall climb never times out")
     @runtimeProperty("ModSettings.dependency", "enabled")
@@ -221,7 +245,7 @@ public class WallRunSettings extends ScriptableSystem {
 
     @runtimeProperty("ModSettings.mod", "Overclocked Lynx Paws")
     @runtimeProperty("ModSettings.category", "Can't Get Enough?")
-    @runtimeProperty("ModSettings.category.order", "6")
+    @runtimeProperty("ModSettings.category.order", "7")
     @runtimeProperty("ModSettings.displayName", "Unlimited Wall Slide")
     @runtimeProperty("ModSettings.description", "Wall slide never times out")
     @runtimeProperty("ModSettings.dependency", "enabled")
@@ -229,7 +253,7 @@ public class WallRunSettings extends ScriptableSystem {
 
     @runtimeProperty("ModSettings.mod", "Overclocked Lynx Paws")
     @runtimeProperty("ModSettings.category", "Can't Get Enough?")
-    @runtimeProperty("ModSettings.category.order", "6")
+    @runtimeProperty("ModSettings.category.order", "7")
     @runtimeProperty("ModSettings.displayName", "Unlimited Hangtime")
     @runtimeProperty("ModSettings.description", "Wall hangtime never times out")
     @runtimeProperty("ModSettings.dependency", "enabled")
@@ -237,7 +261,7 @@ public class WallRunSettings extends ScriptableSystem {
 
     @runtimeProperty("ModSettings.mod", "Overclocked Lynx Paws")
     @runtimeProperty("ModSettings.category", "Can't Get Enough?")
-    @runtimeProperty("ModSettings.category.order", "6")
+    @runtimeProperty("ModSettings.category.order", "7")
     @runtimeProperty("ModSettings.displayName", "Unlimited Wall Chains")
     @runtimeProperty("ModSettings.description", "No limit on wall-to-wall chains")
     @runtimeProperty("ModSettings.dependency", "enabled")
@@ -247,7 +271,7 @@ public class WallRunSettings extends ScriptableSystem {
 
     @runtimeProperty("ModSettings.mod", "Overclocked Lynx Paws")
     @runtimeProperty("ModSettings.category", "Debug")
-    @runtimeProperty("ModSettings.category.order", "7")
+    @runtimeProperty("ModSettings.category.order", "8")
     @runtimeProperty("ModSettings.displayName", "Debug Overlay")
     @runtimeProperty("ModSettings.description", "Show wall running state info on screen")
     @runtimeProperty("ModSettings.dependency", "enabled")
@@ -255,7 +279,7 @@ public class WallRunSettings extends ScriptableSystem {
 
     @runtimeProperty("ModSettings.mod", "Overclocked Lynx Paws")
     @runtimeProperty("ModSettings.category", "Debug")
-    @runtimeProperty("ModSettings.category.order", "7")
+    @runtimeProperty("ModSettings.category.order", "8")
     @runtimeProperty("ModSettings.displayName", "Enable CET Logs")
     @runtimeProperty("ModSettings.description", "Print detailed debug information to the CET console log")
     @runtimeProperty("ModSettings.dependency", "enabled")

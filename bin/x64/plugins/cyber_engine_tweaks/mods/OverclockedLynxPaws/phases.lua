@@ -28,7 +28,7 @@ local AIM_KICK_ARC_RATIO   = 0.75      -- vertical boost as fraction of kick for
 local RHANG_SCOOP_DEG      = 12        -- pitch scoop amplitude during reverse hang (degrees)
 local WALL_RUN_GRACE_DURATION  = 0.25  -- seconds to ride through small wall gaps
 local WALL_RUN_VERT_PROBE_OFFSET = 0.8 -- height above/below targetZ to probe wall existence
-local WALL_RUN_MIN_SPEED      = 7.0   -- minimum wall run lateral speed (m/s)
+-- Minimum wall run lateral speed (m/s) is configurable via cfg.wallRunSpeed
 local WALL_RUN_MIN_ENTRY_SPEED = 12.0 -- minimum entry speed for wall run (m/s)
 local WALL_RUN_SPEED_DECAY    = 2.0   -- seconds for entry speed to decay to minimum
 -- Stamina costs (when cfg.drainStamina is enabled)
@@ -40,7 +40,8 @@ local STAMINA_MIN_TO_START       = 35  -- minimum stamina to enter wall run / cl
 --- Current wall run lateral speed, accounting for entry speed decay over time.
 local function getWallRunSpeed()
     local decayFrac = math.min((wallState.wallRunElapsed or 0) / WALL_RUN_SPEED_DECAY, 1.0)
-    local speed = (wallState.wallRunEntrySpeed or 0) + (WALL_RUN_MIN_SPEED - (wallState.wallRunEntrySpeed or 0)) * decayFrac
+    local minSpeed = cfg.wallRunSpeed
+    local speed = (wallState.wallRunEntrySpeed or 0) + (minSpeed - (wallState.wallRunEntrySpeed or 0)) * decayFrac
     if wallState.kerenzikovActive then speed = Kerenzikov.wallRunSpeed end
     return speed
 end
@@ -1024,7 +1025,7 @@ local function updateWallClimbing(dt, airborne, dashCancel, LynxPaw)
             return
         end
     else
-        local vertSpeed = cfg.riseSpeed * 3.0
+        local vertSpeed = cfg.wallClimbSpeed
         wallState.targetZ = wallState.targetZ + vertSpeed * dt
     end
 
