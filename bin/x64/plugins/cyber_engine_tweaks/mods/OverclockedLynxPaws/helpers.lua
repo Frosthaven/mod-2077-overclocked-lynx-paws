@@ -98,11 +98,29 @@ function Helpers.spawnWallImpactVFX(position)
     end)
 end
 
+-- Cybernetic → natural sound replacements (when cfg.useNaturalSounds is on).
+local naturalSoundMap = {
+    ["lcm_wallrun_in"]                = "lcm_fs_heavy_boots_tarmac_land",
+    ["lcm_wallrun_out"]               = "lcm_fs_heavy_boots_metal_grating_jump",
+    ["lcm_player_double_jump"]        = "lcm_fs_heavy_boots_metal_grating_jump",
+    ["w_gun_pistol_tech_kenshin_charge"] = "test_sound",
+}
+
+--- Apply the natural-sound override if the setting is enabled.
+--- @param name string Original sound name.
+--- @return string The remapped name (or the original if no remap).
+local function remapSound(name)
+    if cfg.useNaturalSounds and naturalSoundMap[name] then
+        return naturalSoundMap[name]
+    end
+    return name
+end
+
 --- Queue a sound play event on the player entity.
 --- @param name string The sound event name to play.
 function Helpers.playSound(name)
     local evt = SoundPlayEvent.new()
-    evt.soundName = name
+    evt.soundName = remapSound(name)
     wallState.player:QueueEvent(evt)
 end
 
@@ -110,7 +128,7 @@ end
 --- @param name string The sound event name to stop.
 function Helpers.stopSound(name)
     local evt = SoundStopEvent.new()
-    evt.soundName = name
+    evt.soundName = remapSound(name)
     wallState.player:QueueEvent(evt)
 end
 

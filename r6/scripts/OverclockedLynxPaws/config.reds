@@ -35,6 +35,14 @@ public class WallRunSettings extends ScriptableSystem {
     @runtimeProperty("ModSettings.dependency", "enabled")
     public let triggerKerenzikov: Bool = true;
 
+    @runtimeProperty("ModSettings.mod", "Overclocked Lynx Paws")
+    @runtimeProperty("ModSettings.category", "General")
+    @runtimeProperty("ModSettings.category.order", "1")
+    @runtimeProperty("ModSettings.displayName", "Use Natural Sounds")
+    @runtimeProperty("ModSettings.description", "Replaces cybernetic sfx with more subtle natural sounds")
+    @runtimeProperty("ModSettings.dependency", "enabled")
+    public let useNaturalSounds: Bool = false;
+
     // ── Progression Scaling ─────────────────────────────────────────────
 
     @runtimeProperty("ModSettings.mod", "Overclocked Lynx Paws")

@@ -35,6 +35,7 @@ local cfg = {
     drainStamina       = true,  -- drain stamina during wall actions
     staminaScalesShinobi = true, -- scale stamina reduction with Shinobi (false = Lynx Paw tier)
     wallRunEntryAngle  = 15.0, -- min approach angle for wall run (below = climb)
+    useNaturalSounds   = false, -- replace cybernetic SFX with natural alternatives
 }
 
 -- All Redscript-exposed fields to sync from WallRunSettings
@@ -47,6 +48,7 @@ local syncFields = {
     "unlimitedWallRun", "unlimitedWallClimb", "unlimitedWallSlide",
     "unlimitedHangtime", "unlimitedWallChains",
     "gainShinobiSkill", "requireSprint", "drainStamina", "staminaScalesShinobi", "wallRunEntryAngle",
+    "useNaturalSounds",
 }
 
 --- Synchronize mod configuration values from the Redscript WallRunSettings scriptable system.
