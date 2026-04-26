@@ -121,8 +121,8 @@ public class WallRunSettings extends ScriptableSystem {
     @runtimeProperty("ModSettings.displayName", "Run Speed")
     @runtimeProperty("ModSettings.description", "Base wall run speed in m/s. Faster entry velocity is preserved and decays toward this floor over ~2s.")
     @runtimeProperty("ModSettings.step", "0.5")
-    @runtimeProperty("ModSettings.min", "2.0")
-    @runtimeProperty("ModSettings.max", "25.0")
+    @runtimeProperty("ModSettings.min", "1.0")
+    @runtimeProperty("ModSettings.max", "30.0")
     @runtimeProperty("ModSettings.dependency", "enabled")
     public let wallRunSpeed: Float = 7.0;
 
@@ -146,7 +146,7 @@ public class WallRunSettings extends ScriptableSystem {
     @runtimeProperty("ModSettings.description", "Vertical speed (m/s) while wall climbing")
     @runtimeProperty("ModSettings.step", "0.5")
     @runtimeProperty("ModSettings.min", "1.0")
-    @runtimeProperty("ModSettings.max", "15.0")
+    @runtimeProperty("ModSettings.max", "30.0")
     @runtimeProperty("ModSettings.dependency", "enabled")
     public let wallClimbSpeed: Float = 6.0;
 
