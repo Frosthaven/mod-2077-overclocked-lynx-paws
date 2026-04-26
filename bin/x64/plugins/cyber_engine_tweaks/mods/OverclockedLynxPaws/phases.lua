@@ -903,6 +903,7 @@ local function updateWallRunning(dt, airborne, dashCancel, LynxPaw)
     end
 
     Helpers.queueImpulse(Vector4.new(0, 0, 0, 0))
+    Helpers.applyAimAssist(dt)
     camera.trackedYaw = camera.trackedYaw - Helpers.consumeAimYaw(dt)
 
     Game.GetTeleportationFacility():Teleport(
@@ -1069,6 +1070,7 @@ local function updateWallClimbing(dt, airborne, dashCancel, LynxPaw)
     end
 
     Helpers.queueImpulse(Vector4.new(0, 0, 0, 0))
+    Helpers.applyAimAssist(dt)
     camera.trackedYaw = camera.trackedYaw - Helpers.consumeAimYaw(dt)
 
     Game.GetTeleportationFacility():Teleport(
@@ -1159,6 +1161,7 @@ local function updateWallSliding(dt, airborne, dashCancel, LynxPaw)
     end
 
     Helpers.queueImpulse(Vector4.new(0, 0, 0, 0))
+    Helpers.applyAimAssist(dt)
     camera.trackedYaw = camera.trackedYaw - Helpers.consumeAimYaw(dt)
 
     Game.GetTeleportationFacility():Teleport(

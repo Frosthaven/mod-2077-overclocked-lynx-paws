@@ -260,10 +260,86 @@ function Helpers.angleLerp(a, b, t)
     return a + diff * t
 end
 
+--- Manually drive aim assist during teleport-driven wall phases.
+--- Engine's aim assist tick is bypassed because we own the player transform
+--- every frame; this replicates vanilla soft-lock by querying the targeting
+--- system and nudging camera.trackedYaw toward the candidate target.
+--- Respects the player's Aim Assist setting (Off/Light/Standard/Heavy).
+--- Only fires while ADS-ing.
+--- @param dt number Delta time in seconds.
+function Helpers.applyAimAssist(dt)
+    local Kerenzikov = require("kerenzikov")
+    if not Kerenzikov.isAimingDownSights() then return end
+
+    local strength = 0
+    pcall(function()
+        local lvlStr = tostring(wallState.player:GetAimAssistLevel())
+        if lvlStr:find("Off") then strength = 0
+        elseif lvlStr:find("Light") then strength = 30
+        elseif lvlStr:find("Heavy") or lvlStr:find("Substantial") then strength = 120
+        else strength = 60 end
+    end)
+    if strength <= 0 then return end
+
+    -- Find a target via the engine's targeting system, then walk to the
+    -- parent entity for a usable world position. GetComponentClosestToCrosshair
+    -- returns an IPlacedComponent whose owner is the GameObject we want.
+    local tgtPos
+    pcall(function()
+        local q = TSQ_EnemyNPC()
+        q.maxDistance = 50.0
+        q.filterObjectByDistance = true
+        local comp = Game.GetTargetingSystem():GetComponentClosestToCrosshair(wallState.player, q)
+        if not comp then return end
+        local entity
+        pcall(function() entity = comp:GetEntity() end)
+        if not entity then
+            pcall(function() entity = comp:GetOwner() end)
+        end
+        if entity then tgtPos = entity:GetWorldPosition() end
+    end)
+    if not tgtPos then return end
+
+    -- Wrap the camera/math/correction in pcall so a runtime error here can
+    -- never propagate up and break the wall-phase teleport pipeline.
+    pcall(function()
+        -- Approximate camera world position from the player + head-height
+        -- offset; CameraSystem doesn't expose a world-position getter.
+        local pp = wallState.player:GetWorldPosition()
+        local camPos = Vector4.new(pp.x, pp.y, pp.z + 1.6, 0)
+        local fwd = Game.GetCameraSystem():GetActiveCameraForward()
+        local dx = tgtPos.x - camPos.x
+        local dy = tgtPos.y - camPos.y
+        local dz = (tgtPos.z + 1.0) - camPos.z
+        local horizLen = math.sqrt(dx*dx + dy*dy)
+        if horizLen < 0.1 then return end
+
+        local fwdYaw = math.deg(math.atan2(fwd.y, fwd.x))
+        local tgtYaw = math.deg(math.atan2(dy, dx))
+        local yawErr = ((tgtYaw - fwdYaw + 180) % 360) - 180
+
+        local fwdPitch = math.deg(math.atan2(fwd.z, math.sqrt(fwd.x*fwd.x + fwd.y*fwd.y)))
+        local tgtPitch = math.deg(math.atan2(dz, horizLen))
+        local pitchErr = tgtPitch - fwdPitch
+
+        local maxYaw, maxPitch = 8.0, 5.0
+        if math.abs(yawErr) > maxYaw or math.abs(pitchErr) > maxPitch then return end
+
+        local falloff = 1.0 - math.min(1.0, math.abs(yawErr) / maxYaw)
+        local correction = math.min(strength * falloff * dt, math.abs(yawErr))
+        if yawErr > 0 then
+            camera.trackedYaw = camera.trackedYaw + correction
+        else
+            camera.trackedYaw = camera.trackedYaw - correction
+        end
+    end)
+end
+
 --- Consume pending mouse and gamepad right-stick input to compute a yaw delta.
 --- Uses the game's native sensitivity settings so wall-phase aiming matches normal gameplay.
 --- @param dt number Delta time in seconds.
 --- @return number The computed yaw delta in degrees.
+
 function Helpers.consumeAimYaw(dt)
     -- Mouse: CameraMouseX is already sensitivity-adjusted by the game, just convert to degrees
     local mouseYaw = camera.pendingMouseDeltaX * 0.075
