@@ -293,11 +293,39 @@ end
 --- @return number|nil ledgeZ The Z height of the ledge top, or nil if the wall is too tall.
 function Helpers.findLedgeTop(pos, wallNormal)
     local wallDir = Vector4.new(-wallNormal.x, -wallNormal.y, 0, 0)
+    local rayLen = cfg.wallDetectDistance * 2
+
     for h = -0.5, 1.2, 0.2 do
         local testOrigin = Vector4.new(pos.x, pos.y, pos.z + h, 0)
-        local hit = Helpers.raycast(testOrigin, wallDir, cfg.wallDetectDistance * 2)
+        local hit = Helpers.raycast(testOrigin, wallDir, rayLen)
         if not hit and h > 0 then
-            return pos.z + h
+            -- Verify wall really ends here — doesn't resume above (which would mean
+            -- this is a hole/gap in the wall, not a ledge). Use a shorter range so
+            -- we only detect THIS wall continuing, not unrelated rooftop geometry.
+            local resumeRange = cfg.targetWallDist + 0.4
+            local wallResumes = false
+            for _, dh in ipairs({ 0.4, 0.8, 1.4 }) do
+                local upOrigin = Vector4.new(pos.x, pos.y, pos.z + h + dh, 0)
+                if Helpers.raycast(upOrigin, wallDir, resumeRange) then
+                    wallResumes = true
+                    break
+                end
+            end
+            if not wallResumes then
+                -- Probe at multiple distances past the wall surface to avoid
+                -- skimming the front face. Any hit within ±1m of the detected
+                -- ledge height counts as solid ground.
+                for _, d in ipairs({ 0.5, 0.8, 1.1 }) do
+                    local pastX = pos.x + wallDir.x * d
+                    local pastY = pos.y + wallDir.y * d
+                    local downOrigin = Vector4.new(pastX, pastY, pos.z + h + 0.5, 0)
+                    local gHit, gPos = Helpers.raycast(
+                        downOrigin, Vector4.new(0, 0, -1, 0), 5.0)
+                    if gHit and math.abs(gPos.z - (pos.z + h)) <= 1.0 then
+                        return pos.z + h
+                    end
+                end
+            end
         end
     end
     return nil
