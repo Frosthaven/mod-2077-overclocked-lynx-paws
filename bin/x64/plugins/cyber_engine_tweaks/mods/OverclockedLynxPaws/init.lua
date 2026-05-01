@@ -146,6 +146,12 @@ function OverclockedLynxPaws:New()
             if self._Kerenzikov then self._Kerenzikov.deactivate() end
             if self._Helpers then self._Helpers.applyCameraRoll(0) end
         end
+        -- Clear mod facts so a CET reload mid-flight can't leave the Redscript
+        -- hooks reading stale state (e.g. wr_safe_land = 1 forever).
+        local ok, SafeLanding = pcall(require, "safelanding")
+        if ok and SafeLanding and SafeLanding.clearAllFacts then
+            SafeLanding.clearAllFacts()
+        end
         if self._wallState then self._wallState.player = nil end
         self.loaded = false
     end)
@@ -177,6 +183,13 @@ function OverclockedLynxPaws:Setup()
 
     local Helpers = require("helpers")
     Helpers.init()
+
+    -- Wipe any mod quest facts that might have been saved into the playthrough
+    -- (e.g. wr_safe_land left at 1 from a prior session). The Redscript hooks
+    -- start firing immediately on game load, so stale facts must be cleared
+    -- before any airborne frame can hit the engine.
+    local SafeLanding = require("safelanding")
+    SafeLanding.clearAllFacts()
 
     local config = require("config")
     config.syncSettings()

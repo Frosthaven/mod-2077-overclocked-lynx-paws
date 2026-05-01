@@ -1746,6 +1746,10 @@ function Phases.update(dt, syncSettings, LynxPaw)
         Kerenzikov.deactivate()
         if wallState.phase ~= "IDLE" then exitWallRun() end
         Helpers.resetCameraRoll()
+        -- Clear safe-landing facts so the Redscript hook can't keep
+        -- downgrading falls (and preventing damage) while the mod is off.
+        SafeLanding.clearLandingFacts()
+        wallState.crouchBuffered = false
         wallState.debugText = cfg.debugEnabled and "WallRun: DISABLED" or ""
         return
     end
@@ -1815,6 +1819,10 @@ function Phases.update(dt, syncSettings, LynxPaw)
         if wallState.airborneTime > 0 then
             camera.targetTilt = 0
         end
+        -- Clear safe-landing facts on every touchdown so failure paths
+        -- (buffer expired in air, never pressed crouch) don't leak
+        -- wr_landing_safe across falls.
+        SafeLanding.clearLandingFacts()
         wallState.airborneTime = 0
         wallState.airPeakZ = nil
         wallState.wallRunUsedThisJump = false

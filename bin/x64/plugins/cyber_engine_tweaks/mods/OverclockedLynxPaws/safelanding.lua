@@ -80,6 +80,32 @@ function SafeLanding.clearBuffer()
     wallState.crouchBufferTimer = 0
 end
 
+--- Clear all mod-owned quest facts. Called on mod load, mod shutdown, master
+--- toggle off, and airborne→ground transition so the Redscript hooks can
+--- never read a stale fact when Lua isn't actively managing it.
+function SafeLanding.clearAllFacts()
+    local qs = Game.GetQuestsSystem()
+    if not qs then return end
+    qs:SetFact(CName.new("wr_safe_land"), 0)
+    qs:SetFact(CName.new("wr_landing_safe"), 0)
+    qs:SetFact(CName.new("wr_safe_roll"), 0)
+    qs:SetFact(CName.new("wr_uncrouch"), 0)
+    qs:SetFact(CName.new("wr_sprint"), 0)
+    qs:SetFact(CName.new("wr_wall_active"), 0)
+    qs:SetFact(CName.new("wr_reset_jumps"), 0)
+end
+
+--- Clear safe-landing communication facts only. Used on every airborne→ground
+--- transition so a leaked wr_landing_safe (set by the Redscript hook when the
+--- buffer was alive but Lua's roll trigger gate later failed) can't carry
+--- across falls.
+function SafeLanding.clearLandingFacts()
+    local qs = Game.GetQuestsSystem()
+    if not qs then return end
+    qs:SetFact(CName.new("wr_safe_land"), 0)
+    qs:SetFact(CName.new("wr_landing_safe"), 0)
+end
+
 --- Tick down the roll sound countdown timer and stop the sound when it expires.
 --- @param dt number Delta time in seconds.
 function SafeLanding.updateRollSound(dt)
