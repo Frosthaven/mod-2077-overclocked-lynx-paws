@@ -200,10 +200,10 @@ public class WallRunSettings extends ScriptableSystem {
     @runtimeProperty("ModSettings.dependency", "enabled")
     public let chainBonusDuration: Float = 1.0;
 
-    // ── Safe Landing ──────────────────────────────────────────────────
+    // ── Safe Landing Roll ─────────────────────────────────────────────
 
     @runtimeProperty("ModSettings.mod", "Overclocked Lynx Paws")
-    @runtimeProperty("ModSettings.category", "Safe Landing")
+    @runtimeProperty("ModSettings.category", "Safe Landing Roll")
     @runtimeProperty("ModSettings.category.order", "8")
     @runtimeProperty("ModSettings.displayName", "Require Lynx Paws")
     @runtimeProperty("ModSettings.description", "Safe landing rolls only work when Lynx Paw leg cyberware is equipped")
@@ -211,7 +211,7 @@ public class WallRunSettings extends ScriptableSystem {
     public let requireLynxPawsForSafeLanding: Bool = true;
 
     @runtimeProperty("ModSettings.mod", "Overclocked Lynx Paws")
-    @runtimeProperty("ModSettings.category", "Safe Landing")
+    @runtimeProperty("ModSettings.category", "Safe Landing Roll")
     @runtimeProperty("ModSettings.category.order", "8")
     @runtimeProperty("ModSettings.displayName", "Opportunity Window")
     @runtimeProperty("ModSettings.description", "How long before landing you can press crouch to trigger a safe roll landing (seconds)")
@@ -222,7 +222,7 @@ public class WallRunSettings extends ScriptableSystem {
     public let safeLandWindow: Float = 0.40;
 
     @runtimeProperty("ModSettings.mod", "Overclocked Lynx Paws")
-    @runtimeProperty("ModSettings.category", "Safe Landing")
+    @runtimeProperty("ModSettings.category", "Safe Landing Roll")
     @runtimeProperty("ModSettings.category.order", "8")
     @runtimeProperty("ModSettings.displayName", "Automatically Activate")
     @runtimeProperty("ModSettings.description", "Automatically perform a safe roll on any damaging fall. Fatal heights still require Survive Any Height.")
@@ -230,7 +230,7 @@ public class WallRunSettings extends ScriptableSystem {
     public let safeLandAlways: Bool = false;
 
     @runtimeProperty("ModSettings.mod", "Overclocked Lynx Paws")
-    @runtimeProperty("ModSettings.category", "Safe Landing")
+    @runtimeProperty("ModSettings.category", "Safe Landing Roll")
     @runtimeProperty("ModSettings.category.order", "8")
     @runtimeProperty("ModSettings.displayName", "Survive Any Height")
     @runtimeProperty("ModSettings.description", "Allow safe landing even from normally lethal fall heights")
