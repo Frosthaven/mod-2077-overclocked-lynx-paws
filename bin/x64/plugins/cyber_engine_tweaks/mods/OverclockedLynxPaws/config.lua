@@ -3,6 +3,7 @@ local cfg = {
     debugEnabled      = false,
     cetLogsEnabled    = false,
     requireLynxPaws   = true,   -- gate wall running on Lynx Paw cyberware
+    requireLynxPawsForSafeLanding = true, -- gate safe-landing roll on Lynx Paw cyberware
     wallRunSpeed      = 7.0, -- min wall run speed (m/s); entry speed decays toward this
     wallClimbSpeed    = 6.0, -- vertical speed during wall climb (m/s)
     unlimitedWallRun    = false,
@@ -41,7 +42,7 @@ local cfg = {
 
 -- All Redscript-exposed fields to sync from WallRunSettings
 local syncFields = {
-    "enabled", "debugEnabled", "cetLogsEnabled", "requireLynxPaws",
+    "enabled", "debugEnabled", "cetLogsEnabled", "requireLynxPaws", "requireLynxPawsForSafeLanding",
     "wallRunDuration", "wallClimbDuration", "wallSlideDuration",
     "maxWallChains", "chainBonusDuration",
     "triggerKerenzikov", "wallKickAimHold", "wallKickForce",

@@ -1756,7 +1756,7 @@ function Phases.update(dt, syncSettings, LynxPaw)
     -- loco transitions. Only expires via its own timer or on consumption.
     local loco = Helpers.getDetailedLocomotionState()
     if input.crouchJustPressed and wallState.phase == "IDLE" and airborne and not wallState.crouchBufferUsed
-       and (not cfg.requireLynxPaws or LynxPaw.equipped) then
+       and (not cfg.requireLynxPawsForSafeLanding or LynxPaw.equipped) then
         wallState.crouchBuffered = true
         wallState.crouchBufferTimer = 0
         wallState.crouchBufferUsed = true  -- one shot per airborne period
@@ -1781,7 +1781,7 @@ function Phases.update(dt, syncSettings, LynxPaw)
     -- Always-safe-land: keep buffer active throughout every airborne period
     -- so the Redscript hook can downgrade death landings while still in air.
     if cfg.safeLandAlways and wallState.phase == "IDLE" and airborne
-       and (not cfg.requireLynxPaws or LynxPaw.equipped) then
+       and (not cfg.requireLynxPawsForSafeLanding or LynxPaw.equipped) then
         wallState.crouchBuffered = true
         wallState.crouchBufferTimer = 0
     end
