@@ -378,21 +378,31 @@ function Helpers.applyCameraRoll(roll)
     end
 end
 
---- Cast a ray from hip height, falling back to knee height on miss.
+--- Cast a ray at multiple body heights, returning the first hit.
+--- The dense low-range probes (0.40 → 0.65 at 0.05 m spacing) are tuned to
+--- catch slatted fences with periods 0.15–0.50 m and plank thickness ≥ 5 cm
+--- — six probes give six distinct offsets per 0.30 m period, so at least
+--- one always lands in plank material. The upper probes provide body-height
+--- coverage for non-slat walls. Early-exit on first hit keeps cost ~1 ray
+--- per frame on solid walls.
 --- @param pos Vector4 The player's world position (feet level).
 --- @param rayDir Vector4 Normalized direction to cast.
 --- @param range number Maximum ray distance in meters.
---- @return boolean hit Whether either ray intersected geometry.
+--- @return boolean hit Whether any ray intersected geometry.
 --- @return Vector4|nil hitPos World-space hit position, or nil on miss.
 --- @return number hitDist Distance to hit point, or 999 on miss.
 function Helpers.raycastWithKneeFallback(pos, rayDir, range)
-    local hipOrigin = Vector4.new(pos.x, pos.y, pos.z + 1.0, 0)
-    local hit, hitPos, dist = Helpers.raycast(hipOrigin, rayDir, range)
-    if not hit then
-        local kneeOrigin = Vector4.new(pos.x, pos.y, pos.z + 0.4, 0)
-        hit, hitPos, dist = Helpers.raycast(kneeOrigin, rayDir, range)
+    local heights = {
+        1.0, 0.4,                                      -- original hip + knee tried first
+        0.45, 0.5, 0.55, 0.6, 0.65,                    -- dense slat-busting probes
+        0.75, 0.85, 0.95, 1.05, 1.15, 1.25, 1.3,       -- upper-body coverage
+    }
+    for _, h in ipairs(heights) do
+        local origin = Vector4.new(pos.x, pos.y, pos.z + h, 0)
+        local hit, hitPos, dist = Helpers.raycast(origin, rayDir, range)
+        if hit then return hit, hitPos, dist end
     end
-    return hit, hitPos, dist
+    return false, nil, 999
 end
 
 --- Scan upward from the player's position to find where a wall ends (ledge top).
@@ -403,37 +413,44 @@ function Helpers.findLedgeTop(pos, wallNormal)
     local wallDir = Vector4.new(-wallNormal.x, -wallNormal.y, 0, 0)
     local rayLen = cfg.wallDetectDistance * 2
 
+    -- Find the highest h within scan range where the wall hits. The mount
+    -- candidate sits one scan-step above this so we always land above the
+    -- wall's actual topmost surface — never inside a slat gap on a thin
+    -- fence and never on a fake ledge in a hole/window.
+    local highestHitH
     for h = -0.5, 1.2, 0.2 do
         local testOrigin = Vector4.new(pos.x, pos.y, pos.z + h, 0)
-        local hit = Helpers.raycast(testOrigin, wallDir, rayLen)
-        if not hit and h > 0 then
-            -- Verify wall really ends here — doesn't resume above (which would mean
-            -- this is a hole/gap in the wall, not a ledge). Use a shorter range so
-            -- we only detect THIS wall continuing, not unrelated rooftop geometry.
-            local resumeRange = cfg.targetWallDist + 0.4
-            local wallResumes = false
-            for _, dh in ipairs({ 0.4, 0.8, 1.4 }) do
-                local upOrigin = Vector4.new(pos.x, pos.y, pos.z + h + dh, 0)
-                if Helpers.raycast(upOrigin, wallDir, resumeRange) then
-                    wallResumes = true
-                    break
-                end
-            end
-            if not wallResumes then
-                -- Probe at multiple distances past the wall surface to avoid
-                -- skimming the front face. Any hit within ±1m of the detected
-                -- ledge height counts as solid ground.
-                for _, d in ipairs({ 0.5, 0.8, 1.1 }) do
-                    local pastX = pos.x + wallDir.x * d
-                    local pastY = pos.y + wallDir.y * d
-                    local downOrigin = Vector4.new(pastX, pastY, pos.z + h + 0.5, 0)
-                    local gHit, gPos = Helpers.raycast(
-                        downOrigin, Vector4.new(0, 0, -1, 0), 5.0)
-                    if gHit and math.abs(gPos.z - (pos.z + h)) <= 1.0 then
-                        return pos.z + h
-                    end
-                end
-            end
+        if Helpers.raycast(testOrigin, wallDir, rayLen) then
+            highestHitH = h
+        end
+    end
+    if not highestHitH then return nil end
+
+    -- Candidate ledge top must be above the player's feet to be reachable.
+    local candidateH = highestHitH + 0.2
+    if candidateH <= 0 then return nil end
+
+    -- Verify wall doesn't continue above the candidate. Dense 10 cm sweep
+    -- catches slatted-fence plank patterns whose period the previous
+    -- {0.4, 0.8, 1.4} sampling could alias through.
+    local resumeRange = cfg.targetWallDist + 0.4
+    for dh = 0.1, 1.4, 0.1 do
+        local upOrigin = Vector4.new(pos.x, pos.y, pos.z + candidateH + dh, 0)
+        if Helpers.raycast(upOrigin, wallDir, resumeRange) then
+            return nil
+        end
+    end
+
+    -- Verify solid ground past the wall at roughly candidate height.
+    -- Multiple distances past the front face avoid skimming.
+    for _, d in ipairs({ 0.5, 0.8, 1.1 }) do
+        local pastX = pos.x + wallDir.x * d
+        local pastY = pos.y + wallDir.y * d
+        local downOrigin = Vector4.new(pastX, pastY, pos.z + candidateH + 0.5, 0)
+        local gHit, gPos = Helpers.raycast(
+            downOrigin, Vector4.new(0, 0, -1, 0), 5.0)
+        if gHit and math.abs(gPos.z - (pos.z + candidateH)) <= 1.0 then
+            return pos.z + candidateH
         end
     end
     return nil

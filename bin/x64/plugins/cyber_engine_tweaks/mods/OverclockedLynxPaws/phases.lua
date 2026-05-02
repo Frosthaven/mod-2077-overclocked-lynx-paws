@@ -166,6 +166,7 @@ local function cleanupWallState()
     wallState.wallPathDist = 0
     wallState.pendingTransition = nil
     wallState.wallTransitionUsed = false
+    wallState.climbHeldRef = nil
 end
 
 --- Transition to slide from any wall phase (stamina depletion or timer expiry).
@@ -372,6 +373,7 @@ enterWallClimb = function(wallNormal, isChain)
     wallState.wallSide    = nil
     wallState.wallRunDir  = nil
     wallState.climbTimer  = 0
+    wallState.climbHeldRef = nil
     -- Only reset shared timer if not carrying over from a chain
     if wallState.timer <= 0 then
         wallState.timer = cfg.wallClimbDuration
@@ -1001,6 +1003,19 @@ local function updateWallClimbing(dt, airborne, dashCancel, LynxPaw)
         return
     end
 
+    -- Continuous ledge detection (~10 Hz). Mount as soon as the player's
+    -- pos.z rises high enough that a real ledge is in reach, instead of
+    -- waiting for the climb timer to expire — fixes the case where a
+    -- tall fence's cap is just above where the timer would otherwise end.
+    wallState.ledgeCheckTimer = (wallState.ledgeCheckTimer or 0) - dt
+    if wallState.ledgeCheckTimer <= 0 then
+        wallState.ledgeCheckTimer = 0.1
+        if Helpers.findLedgeTop(pos, wallState.wallNormal) then
+            beginLedgeMount(wallState.wallNormal)
+            return
+        end
+    end
+
     -- Shared duration timer
     if not cfg.unlimitedWallClimb then
         wallState.timer = wallState.timer - dt
@@ -1040,17 +1055,37 @@ local function updateWallClimbing(dt, airborne, dashCancel, LynxPaw)
         wallState.targetZ = math.max(wallState.targetZ, groundPos.z + 0.05)
     end
 
-    -- Try to stick to wall
+    -- Try to stick to wall (presence check only — different probe heights
+    -- can hit different planks on a slatted fence, so we don't trust each
+    -- frame's hitPos for the held xy position).
     local rayDir = Vector4.new(-wallState.wallNormal.x, -wallState.wallNormal.y, 0, 0)
     local hitWall, hitPos, dist = Helpers.raycastWithKneeFallback(pos, rayDir, cfg.wallDetectDistance * 1.5)
 
     local newPos
     if hitWall then
-        wallState.wallNormal = WallDetect.calculateWallNormal(Helpers.getPlayerHipPosition(), hitPos)
         wallState.wallLostTimer = nil
+        -- First successful frame: exhaustively probe every body height,
+        -- pick the *closest* hit (= most-protruding plank/structure), and
+        -- lock that as the wall reference for the remainder of the climb.
+        -- Holding the player at targetWallDist from the most-protruding
+        -- surface guarantees we clear every other plank even when their
+        -- protrusion varies, eliminating depth wobble between slats.
+        if not wallState.climbHeldRef then
+            local bestHit, bestDist = hitPos, dist
+            local probeHeights = { 0.45, 0.5, 0.55, 0.6, 0.65, 0.75, 0.85, 0.95, 1.05, 1.15, 1.25, 1.3 }
+            for _, h in ipairs(probeHeights) do
+                local origin = Vector4.new(pos.x, pos.y, pos.z + h, 0)
+                local hh, hp, hd = Helpers.raycast(origin, rayDir, cfg.wallDetectDistance * 1.5)
+                if hh and hd < bestDist then
+                    bestHit, bestDist = hp, hd
+                end
+            end
+            wallState.climbHeldRef = Vector4.new(bestHit.x, bestHit.y, bestHit.z, 0)
+        end
+        local refHit = wallState.climbHeldRef
         newPos = Vector4.new(
-            hitPos.x + wallState.wallNormal.x * cfg.targetWallDist,
-            hitPos.y + wallState.wallNormal.y * cfg.targetWallDist,
+            refHit.x + wallState.wallNormal.x * cfg.targetWallDist,
+            refHit.y + wallState.wallNormal.y * cfg.targetWallDist,
             wallState.targetZ,
             1
         )
