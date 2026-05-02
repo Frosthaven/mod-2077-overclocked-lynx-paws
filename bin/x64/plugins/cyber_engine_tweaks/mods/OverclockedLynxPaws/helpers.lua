@@ -441,15 +441,17 @@ function Helpers.findLedgeTop(pos, wallNormal)
         end
     end
 
-    -- Verify solid ground past the wall at roughly candidate height.
-    -- Multiple distances past the front face avoid skimming.
+    -- Verify any solid surface past the wall (within 20 m below candidate).
+    -- Drops the previous ±1 m height tolerance so tall fences on flat ground
+    -- still mount — the resume sweep above already verified the candidate is
+    -- above the wall structure, and the actual mount animation re-probes for
+    -- the landing surface separately. We just need to confirm we're not
+    -- mounting over pure void.
     for _, d in ipairs({ 0.5, 0.8, 1.1 }) do
         local pastX = pos.x + wallDir.x * d
         local pastY = pos.y + wallDir.y * d
         local downOrigin = Vector4.new(pastX, pastY, pos.z + candidateH + 0.5, 0)
-        local gHit, gPos = Helpers.raycast(
-            downOrigin, Vector4.new(0, 0, -1, 0), 5.0)
-        if gHit and math.abs(gPos.z - (pos.z + candidateH)) <= 1.0 then
+        if Helpers.raycast(downOrigin, Vector4.new(0, 0, -1, 0), 20.0) then
             return pos.z + candidateH
         end
     end
