@@ -7,6 +7,19 @@
 OverclockedLynxPaws = { loaded = false }
 
 function OverclockedLynxPaws:New()
+    -- registerInput fires on press AND release (with isDown bool); we only
+    -- raise the just-pressed flag on press for snap-action feel. Bindings
+    -- still appear in the same CET bindings UI as registerHotkey would.
+    registerInput("OLP_ReverseHang", "Reverse Wall Hang", function(isDown)
+        if isDown then require("input").reverseHangJustPressed = true end
+    end)
+    registerInput("OLP_DismountWall", "Dismount Wall", function(isDown)
+        if isDown then require("input").dismountJustPressed = true end
+    end)
+    registerInput("OLP_SafeLandingRoll", "Safe Landing Roll", function(isDown)
+        if isDown then require("input").safeRollJustPressed = true end
+    end)
+
     registerForEvent("onInit", function()
         local config = require("config")
         local state = require("state")
@@ -164,6 +177,9 @@ function OverclockedLynxPaws:New()
             self._input.backJustPressed = false
             self._input.meleeJustPressed = false
             self._input.weaponSwitchJustPressed = false
+            self._input.reverseHangJustPressed = false
+            self._input.dismountJustPressed    = false
+            self._input.safeRollJustPressed    = false
             self._camera.pendingMouseDeltaX = 0
         end
 
@@ -199,6 +215,15 @@ function OverclockedLynxPaws:Setup()
     LynxPaw.equipped = LynxPaw.checkEquipped()
     pcall(LynxPaw.setupStats)
     pcall(LynxPaw.updateDescriptions)
+
+    -- Seed CET hotkey binding cache so the first fall after load uses the
+    -- correct branch (Phases.update refreshes this every 2s thereafter).
+    local input = require("input")
+    pcall(function()
+        input.hotkeyBound.reverseHang = IsBound("OLP_ReverseHang")
+        input.hotkeyBound.dismount    = IsBound("OLP_DismountWall")
+        input.hotkeyBound.safeRoll    = IsBound("OLP_SafeLandingRoll")
+    end)
 
     self._config = config
     self._Helpers = Helpers

@@ -229,6 +229,20 @@ function Helpers.getCameraRightDirection()
     return Vector4.Normalize(Vector4.new(cr.x, cr.y, 0, 0))
 end
 
+--- Resolve which input source to consult for a given action.
+--- If a CET hotkey is bound for the action, only the hotkey's just-pressed
+--- flag fires the action; otherwise fall back to the original key/chord
+--- detection. Lets users rebind reverse hang / dismount / safe-roll without
+--- breaking the default UX.
+--- @param boundFlag boolean Cached IsBound() result for the hotkey.
+--- @param customFlag boolean The hotkey's just-pressed input flag.
+--- @param originalCondition boolean The original detection (back+jump, crouch, etc).
+--- @return boolean True if the action should fire this frame.
+function Helpers.actionFired(boundFlag, customFlag, originalCondition)
+    if boundFlag then return customFlag end
+    return originalCondition
+end
+
 --- Compute smoothstep (Hermite) interpolation: 3t^2 - 2t^3, clamped to [0,1].
 --- @param t number Input value (typically 0 to 1).
 --- @return number The smoothstepped value.

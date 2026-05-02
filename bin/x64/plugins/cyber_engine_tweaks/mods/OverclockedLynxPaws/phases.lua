@@ -695,7 +695,8 @@ local function updateWallRunning(dt, airborne, dashCancel, LynxPaw)
         return
     end
 
-    if input.pressingBack and input.jumpJustPressed and hasEnoughStamina() then
+    if Helpers.actionFired(input.hotkeyBound.reverseHang, input.reverseHangJustPressed,
+            input.pressingBack and input.jumpJustPressed) and hasEnoughStamina() then
         beginReverseHang()
         return
     end
@@ -952,7 +953,8 @@ local function updateWallClimbing(dt, airborne, dashCancel, LynxPaw)
         return
     end
 
-    if input.pressingBack and input.jumpJustPressed and hasEnoughStamina() then
+    if Helpers.actionFired(input.hotkeyBound.reverseHang, input.reverseHangJustPressed,
+            input.pressingBack and input.jumpJustPressed) and hasEnoughStamina() then
         beginReverseHang()
         return
     end
@@ -1348,8 +1350,9 @@ local function updateMantisGrab(dt, airborne, dashCancel, LynxPaw)
         return
     end
 
-    -- Exit: crouch → drop off wall
-    if input.crouchJustPressed then
+    -- Exit: crouch (or custom Dismount Wall hotkey) → drop off wall
+    if Helpers.actionFired(input.hotkeyBound.dismount, input.dismountJustPressed,
+            input.crouchJustPressed) then
         endMantisGrab(false)
         return
     end
@@ -1730,6 +1733,13 @@ function Phases.update(dt, syncSettings, LynxPaw)
         settingsSyncTimer = 0
         syncSettings()
         LynxPaw.equipped = LynxPaw.checkEquipped()
+        -- Refresh CET hotkey binding cache so condition branches stay
+        -- in sync with the player toggling bindings via CET's UI.
+        pcall(function()
+            input.hotkeyBound.reverseHang = IsBound("OLP_ReverseHang")
+            input.hotkeyBound.dismount    = IsBound("OLP_DismountWall")
+            input.hotkeyBound.safeRoll    = IsBound("OLP_SafeLandingRoll")
+        end)
         if Kerenzikov.hasKerenzikov() then
             Kerenzikov.worldScale = Kerenzikov.getDilation()
             Kerenzikov.playerScale = Kerenzikov.getPlayerScale()
@@ -1759,7 +1769,8 @@ function Phases.update(dt, syncSettings, LynxPaw)
     -- Crouch buffer: runs independently of airborne state so it survives
     -- loco transitions. Only expires via its own timer or on consumption.
     local loco = Helpers.getDetailedLocomotionState()
-    if input.crouchJustPressed and wallState.phase == "IDLE" and airborne and not wallState.crouchBufferUsed
+    if Helpers.actionFired(input.hotkeyBound.safeRoll, input.safeRollJustPressed,
+            input.crouchJustPressed) and wallState.phase == "IDLE" and airborne and not wallState.crouchBufferUsed
        and (not cfg.requireLynxPawsForSafeLanding or LynxPaw.equipped) then
         wallState.crouchBuffered = true
         wallState.crouchBufferTimer = 0
@@ -1767,8 +1778,9 @@ function Phases.update(dt, syncSettings, LynxPaw)
         wallState.safeLandDebugText = nil
     end
 
-    -- Crouch during wall phases: dismount immediately
-    if input.crouchJustPressed and (wallState.phase == "WALL_RUNNING" or wallState.phase == "WALL_CLIMBING" or wallState.phase == "WALL_SLIDING" or wallState.phase == "WALL_JUMP_AIM") then
+    -- Crouch (or custom Dismount Wall hotkey) during wall phases: dismount immediately
+    if Helpers.actionFired(input.hotkeyBound.dismount, input.dismountJustPressed,
+            input.crouchJustPressed) and (wallState.phase == "WALL_RUNNING" or wallState.phase == "WALL_CLIMBING" or wallState.phase == "WALL_SLIDING" or wallState.phase == "WALL_JUMP_AIM") then
         -- Preserve momentum when dismounting a wall run
         local runDir = wallState.wallRunDir
         local runSpeed = runDir and getWallRunSpeed() or nil
