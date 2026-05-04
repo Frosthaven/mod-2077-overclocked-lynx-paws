@@ -14,14 +14,6 @@ public class WallRunSettings extends ScriptableSystem {
     @runtimeProperty("ModSettings.mod", "Overclocked Lynx Paws")
     @runtimeProperty("ModSettings.category", "General")
     @runtimeProperty("ModSettings.category.order", "1")
-    @runtimeProperty("ModSettings.displayName", "Parkour Requires Sprint Key")
-    @runtimeProperty("ModSettings.description", "Wall run and climb require holding the sprint key")
-    @runtimeProperty("ModSettings.dependency", "enabled")
-    public let requireSprint: Bool = false;
-
-    @runtimeProperty("ModSettings.mod", "Overclocked Lynx Paws")
-    @runtimeProperty("ModSettings.category", "General")
-    @runtimeProperty("ModSettings.category.order", "1")
     @runtimeProperty("ModSettings.displayName", "Parkour Requires Lynx Paws")
     @runtimeProperty("ModSettings.description", "Wall running and jumping only work when Lynx Paw leg cyberware is equipped")
     @runtimeProperty("ModSettings.dependency", "enabled")
@@ -51,9 +43,19 @@ public class WallRunSettings extends ScriptableSystem {
     @runtimeProperty("ModSettings.dependency", "enabled")
     public let useNaturalSounds: Bool = false;
 
+    // ── Controls ────────────────────────────────────────────────────────
+
     @runtimeProperty("ModSettings.mod", "Overclocked Lynx Paws")
-    @runtimeProperty("ModSettings.category", "General")
-    @runtimeProperty("ModSettings.category.order", "1")
+    @runtimeProperty("ModSettings.category", "Controls")
+    @runtimeProperty("ModSettings.category.order", "2")
+    @runtimeProperty("ModSettings.displayName", "Parkour Requires Sprint Key")
+    @runtimeProperty("ModSettings.description", "Wall run and climb require holding the sprint key")
+    @runtimeProperty("ModSettings.dependency", "enabled")
+    public let requireSprint: Bool = false;
+
+    @runtimeProperty("ModSettings.mod", "Overclocked Lynx Paws")
+    @runtimeProperty("ModSettings.category", "Controls")
+    @runtimeProperty("ModSettings.category.order", "2")
     @runtimeProperty("ModSettings.displayName", "Mouse X Sensitivity")
     @runtimeProperty("ModSettings.description", "Mouse horizontal look speed during wall phases. Independent of the game's mouse sensitivity.")
     @runtimeProperty("ModSettings.step", "0.05")
@@ -63,8 +65,8 @@ public class WallRunSettings extends ScriptableSystem {
     public let lookSensMouseX: Float = 1.0;
 
     @runtimeProperty("ModSettings.mod", "Overclocked Lynx Paws")
-    @runtimeProperty("ModSettings.category", "General")
-    @runtimeProperty("ModSettings.category.order", "1")
+    @runtimeProperty("ModSettings.category", "Controls")
+    @runtimeProperty("ModSettings.category.order", "2")
     @runtimeProperty("ModSettings.displayName", "Mouse Y Sensitivity")
     @runtimeProperty("ModSettings.description", "Mouse vertical look speed during wall phases. Independent of the game's mouse sensitivity.")
     @runtimeProperty("ModSettings.step", "0.05")
@@ -74,8 +76,8 @@ public class WallRunSettings extends ScriptableSystem {
     public let lookSensMouseY: Float = 1.0;
 
     @runtimeProperty("ModSettings.mod", "Overclocked Lynx Paws")
-    @runtimeProperty("ModSettings.category", "General")
-    @runtimeProperty("ModSettings.category.order", "1")
+    @runtimeProperty("ModSettings.category", "Controls")
+    @runtimeProperty("ModSettings.category.order", "2")
     @runtimeProperty("ModSettings.displayName", "Controller X Sensitivity")
     @runtimeProperty("ModSettings.description", "Controller horizontal look speed during wall phases. Independent of the game's controller sensitivity.")
     @runtimeProperty("ModSettings.step", "1.0")
@@ -85,8 +87,8 @@ public class WallRunSettings extends ScriptableSystem {
     public let lookSensControllerX: Float = 15.0;
 
     @runtimeProperty("ModSettings.mod", "Overclocked Lynx Paws")
-    @runtimeProperty("ModSettings.category", "General")
-    @runtimeProperty("ModSettings.category.order", "1")
+    @runtimeProperty("ModSettings.category", "Controls")
+    @runtimeProperty("ModSettings.category.order", "2")
     @runtimeProperty("ModSettings.displayName", "Controller Y Sensitivity")
     @runtimeProperty("ModSettings.description", "Controller vertical look speed during wall phases. Independent of the game's controller sensitivity.")
     @runtimeProperty("ModSettings.step", "1.0")
@@ -99,7 +101,7 @@ public class WallRunSettings extends ScriptableSystem {
 
     @runtimeProperty("ModSettings.mod", "Overclocked Lynx Paws")
     @runtimeProperty("ModSettings.category", "Progression")
-    @runtimeProperty("ModSettings.category.order", "2")
+    @runtimeProperty("ModSettings.category.order", "3")
     @runtimeProperty("ModSettings.displayName", "Gain Shinobi XP")
     @runtimeProperty("ModSettings.description", "Award Shinobi (Reflexes) skill XP for wall actions")
     @runtimeProperty("ModSettings.dependency", "enabled")
@@ -107,7 +109,7 @@ public class WallRunSettings extends ScriptableSystem {
 
     @runtimeProperty("ModSettings.mod", "Overclocked Lynx Paws")
     @runtimeProperty("ModSettings.category", "Progression")
-    @runtimeProperty("ModSettings.category.order", "2")
+    @runtimeProperty("ModSettings.category.order", "3")
     @runtimeProperty("ModSettings.displayName", "Enable Stamina Drain")
     @runtimeProperty("ModSettings.description", "Drain stamina for wall actions. Can be reduced by up to 80%")
     @runtimeProperty("ModSettings.dependency", "enabled")
@@ -115,7 +117,7 @@ public class WallRunSettings extends ScriptableSystem {
 
     @runtimeProperty("ModSettings.mod", "Overclocked Lynx Paws")
     @runtimeProperty("ModSettings.category", "Progression")
-    @runtimeProperty("ModSettings.category.order", "2")
+    @runtimeProperty("ModSettings.category.order", "3")
     @runtimeProperty("ModSettings.displayName", "Scale With [on:Shinobi, off:Cyberware]")
     @runtimeProperty("ModSettings.description", "Scale stamina drain cost reduction by Shinobi or cyberware tier (max 80%)")
     @runtimeProperty("ModSettings.dependency", "drainStamina")
