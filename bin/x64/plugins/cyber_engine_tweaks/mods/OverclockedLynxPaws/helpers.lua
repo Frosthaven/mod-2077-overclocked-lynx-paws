@@ -379,9 +379,7 @@ function Helpers.consumeAimYaw(dt)
 end
 
 --- Apply camera roll to the player's first-person camera component.
---- Pitch is left at 0 (no offset) so the engine's aim-pitch state drives both
---- camera AND weapon attachment naturally — writing trackedPitch here moved
---- only the camera, leaving the gun pinned at engine pitch.
+--- Pitch stays 0 so the engine's aim-pitch drives camera AND weapon together.
 --- @param roll number The roll angle in degrees (positive tilts left).
 function Helpers.applyCameraRoll(roll)
     local camComp = wallState.player:GetFPPCameraComponent()

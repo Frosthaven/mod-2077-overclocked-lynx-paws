@@ -109,7 +109,6 @@ local camera = {
     targetTilt    = 0,
     rollBlendProgress    = 0,    -- 0→1 for roll transition
     trackedYaw      = 0,    -- accumulated mouse yaw (set on wall-run entry, updated from input)
-    trackedPitch    = 0,    -- accumulated camera pitch during wall phases (deg, clamped [-89, 89])
     pendingMouseDeltaX   = 0,    -- raw mouse X delta this frame (consumed each update)
     pendingMouseDeltaY   = 0,    -- raw mouse Y delta this frame (consumed each update)
     rightStickX        = 0,    -- controller right stick X axis (-1 to 1, continuous)
