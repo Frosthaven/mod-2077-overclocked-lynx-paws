@@ -110,11 +110,15 @@ function OverclockedLynxPaws:New()
                     input.weaponSwitchJustPressed = true
                 end
             end
-            -- Capture horizontal aim input for manual yaw tracking
+            -- Capture aim input for manual yaw/pitch tracking during wall phases
             if name == "CameraMouseX" then
                 camera.pendingMouseDeltaX = camera.pendingMouseDeltaX + action:GetValue(action)
+            elseif name == "CameraMouseY" then
+                camera.pendingMouseDeltaY = camera.pendingMouseDeltaY + action:GetValue(action)
             elseif name == "right_stick_x" then
                 camera.rightStickX = action:GetValue(action)
+            elseif name == "right_stick_y" then
+                camera.rightStickY = action:GetValue(action)
             end
             -- Controller left stick Y: treat pull-back as pressingBack
             if name == "left_stick_y" then
@@ -181,6 +185,7 @@ function OverclockedLynxPaws:New()
             self._input.dismountJustPressed    = false
             self._input.safeRollJustPressed    = false
             self._camera.pendingMouseDeltaX = 0
+            self._camera.pendingMouseDeltaY = 0
         end
 
     end)

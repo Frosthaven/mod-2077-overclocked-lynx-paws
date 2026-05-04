@@ -38,6 +38,10 @@ local cfg = {
     staminaScalesShinobi = true, -- scale stamina reduction with Shinobi (false = Lynx Paw tier)
     wallRunEntryAngle  = 15.0, -- min approach angle for wall run (below = climb)
     useNaturalSounds   = false, -- replace cybernetic SFX with natural alternatives
+    lookSensMouseX     = 1.0,   -- mouse X look sensitivity during wall phases
+    lookSensMouseY     = 1.0,   -- mouse Y look sensitivity during wall phases
+    lookSensControllerX = 15.0, -- controller X look sensitivity during wall phases
+    lookSensControllerY = 15.0, -- controller Y look sensitivity during wall phases
 }
 
 -- All Redscript-exposed fields to sync from WallRunSettings
@@ -51,6 +55,7 @@ local syncFields = {
     "unlimitedHangtime", "unlimitedWallChains",
     "gainShinobiSkill", "requireSprint", "drainStamina", "staminaScalesShinobi", "wallRunEntryAngle",
     "useNaturalSounds", "wallRunSpeed", "wallClimbSpeed",
+    "lookSensMouseX", "lookSensMouseY", "lookSensControllerX", "lookSensControllerY",
 }
 
 --- Synchronize mod configuration values from the Redscript WallRunSettings scriptable system.

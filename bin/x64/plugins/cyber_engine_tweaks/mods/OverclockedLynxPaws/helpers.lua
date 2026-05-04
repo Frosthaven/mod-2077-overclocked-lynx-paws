@@ -349,31 +349,51 @@ function Helpers.applyAimAssist(dt)
     end)
 end
 
---- Consume pending mouse and gamepad right-stick input to compute a yaw delta.
---- Uses the game's native sensitivity settings so wall-phase aiming matches normal gameplay.
+--- Consume pending mouse and gamepad right-stick X input to compute a yaw delta.
+--- Mouse: CameraMouseX arrives pre-scaled by vanilla FPP_MouseX. We divide that
+--- out so the mod's slider becomes the authoritative wall-phase mouse sensitivity.
+--- Controller: stick is raw -1..1; we apply our own sensitivity directly (no read
+--- of vanilla FPP_PadX).
 --- @param dt number Delta time in seconds.
---- @return number The computed yaw delta in degrees.
-
+--- @return number Yaw delta in degrees.
 function Helpers.consumeAimYaw(dt)
-    -- Mouse: CameraMouseX is already sensitivity-adjusted by the game, just convert to degrees
-    local mouseYaw = camera.pendingMouseDeltaX * 0.075
-
-    -- Controller: analog -1..1 × game pad sensitivity × deg/sec rate × dt
     local ss = Game.GetSettingsSystem()
-    local padVar = ss:GetVar("/controls/fppcamerapad", "FPP_PadX")
-    local padSens = padVar and padVar:GetValue() or 15
-    local padYaw = camera.rightStickX * padSens * 10.0 * dt
+    local vMouseX = ss:GetVar("/controls/fppcameramouse", "FPP_MouseX")
+    local vSensX = (vMouseX and vMouseX:GetValue()) or 1.0
+    local rawX = camera.pendingMouseDeltaX / math.max(0.01, vSensX)
+    local mouseYaw = rawX * 0.075 * cfg.lookSensMouseX
+
+    local padYaw = camera.rightStickX * cfg.lookSensControllerX * 10.0 * dt
 
     camera.pendingMouseDeltaX = 0
     return mouseYaw + padYaw
 end
 
---- Apply a camera roll angle to the player's first-person camera component.
+--- Consume pending mouse and gamepad right-stick Y input to compute a pitch delta.
+--- Same divide-out-vanilla approach for mouse so the slider is authoritative.
+--- Negation aligns "stick/mouse down → look up" with the engine's post-invert convention.
+--- @param dt number Delta time in seconds.
+--- @return number Pitch delta in degrees (positive = look up).
+function Helpers.consumePitch(dt)
+    local ss = Game.GetSettingsSystem()
+    local vMouseY = ss:GetVar("/controls/fppcameramouse", "FPP_MouseY")
+    local vSensY = (vMouseY and vMouseY:GetValue()) or 1.0
+    local rawY = camera.pendingMouseDeltaY / math.max(0.01, vSensY)
+    local mousePitch = -rawY * 0.075 * cfg.lookSensMouseY
+
+    local padPitch = -camera.rightStickY * cfg.lookSensControllerY * 10.0 * dt
+
+    camera.pendingMouseDeltaY = 0
+    return mousePitch + padPitch
+end
+
+--- Apply camera roll AND tracked pitch to the player's first-person camera component.
+--- Combined into one SetLocalOrientation so we don't double-write per frame.
 --- @param roll number The roll angle in degrees (positive tilts left).
 function Helpers.applyCameraRoll(roll)
     local camComp = wallState.player:GetFPPCameraComponent()
     if camComp then
-        local quat = EulerAngles.ToQuat(EulerAngles.new(-roll, 0, 0))
+        local quat = EulerAngles.ToQuat(EulerAngles.new(-roll, camera.trackedPitch, 0))
         camComp:SetLocalOrientation(quat)
     end
 end

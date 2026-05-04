@@ -51,6 +51,50 @@ public class WallRunSettings extends ScriptableSystem {
     @runtimeProperty("ModSettings.dependency", "enabled")
     public let useNaturalSounds: Bool = false;
 
+    @runtimeProperty("ModSettings.mod", "Overclocked Lynx Paws")
+    @runtimeProperty("ModSettings.category", "General")
+    @runtimeProperty("ModSettings.category.order", "1")
+    @runtimeProperty("ModSettings.displayName", "Mouse X Sensitivity")
+    @runtimeProperty("ModSettings.description", "Mouse horizontal look speed during wall phases. Independent of the game's mouse sensitivity.")
+    @runtimeProperty("ModSettings.step", "0.05")
+    @runtimeProperty("ModSettings.min", "0.5")
+    @runtimeProperty("ModSettings.max", "5.0")
+    @runtimeProperty("ModSettings.dependency", "enabled")
+    public let lookSensMouseX: Float = 1.0;
+
+    @runtimeProperty("ModSettings.mod", "Overclocked Lynx Paws")
+    @runtimeProperty("ModSettings.category", "General")
+    @runtimeProperty("ModSettings.category.order", "1")
+    @runtimeProperty("ModSettings.displayName", "Mouse Y Sensitivity")
+    @runtimeProperty("ModSettings.description", "Mouse vertical look speed during wall phases. Independent of the game's mouse sensitivity.")
+    @runtimeProperty("ModSettings.step", "0.05")
+    @runtimeProperty("ModSettings.min", "0.5")
+    @runtimeProperty("ModSettings.max", "5.0")
+    @runtimeProperty("ModSettings.dependency", "enabled")
+    public let lookSensMouseY: Float = 1.0;
+
+    @runtimeProperty("ModSettings.mod", "Overclocked Lynx Paws")
+    @runtimeProperty("ModSettings.category", "General")
+    @runtimeProperty("ModSettings.category.order", "1")
+    @runtimeProperty("ModSettings.displayName", "Controller X Sensitivity")
+    @runtimeProperty("ModSettings.description", "Controller horizontal look speed during wall phases. Independent of the game's controller sensitivity.")
+    @runtimeProperty("ModSettings.step", "1.0")
+    @runtimeProperty("ModSettings.min", "1.0")
+    @runtimeProperty("ModSettings.max", "30.0")
+    @runtimeProperty("ModSettings.dependency", "enabled")
+    public let lookSensControllerX: Float = 15.0;
+
+    @runtimeProperty("ModSettings.mod", "Overclocked Lynx Paws")
+    @runtimeProperty("ModSettings.category", "General")
+    @runtimeProperty("ModSettings.category.order", "1")
+    @runtimeProperty("ModSettings.displayName", "Controller Y Sensitivity")
+    @runtimeProperty("ModSettings.description", "Controller vertical look speed during wall phases. Independent of the game's controller sensitivity.")
+    @runtimeProperty("ModSettings.step", "1.0")
+    @runtimeProperty("ModSettings.min", "1.0")
+    @runtimeProperty("ModSettings.max", "30.0")
+    @runtimeProperty("ModSettings.dependency", "enabled")
+    public let lookSensControllerY: Float = 15.0;
+
     // ── Progression ─────────────────────────────────────────────────────
 
     @runtimeProperty("ModSettings.mod", "Overclocked Lynx Paws")
