@@ -14,36 +14,42 @@ public class WallRunSettings extends ScriptableSystem {
     @runtimeProperty("ModSettings.mod", "Overclocked Lynx Paws")
     @runtimeProperty("ModSettings.category", "General")
     @runtimeProperty("ModSettings.category.order", "1")
-    @runtimeProperty("ModSettings.displayName", "Natural Sounds")
-    @runtimeProperty("ModSettings.description", "Replaces cybernetic sfx with more subtle natural sounds")
-    @runtimeProperty("ModSettings.dependency", "enabled")
-    public let useNaturalSounds: Bool = false;
-
-    // ── Parkour ──────────────────────────────────────────────────────────
-
-    @runtimeProperty("ModSettings.mod", "Overclocked Lynx Paws")
-    @runtimeProperty("ModSettings.category", "Parkour")
-    @runtimeProperty("ModSettings.category.order", "3")
-    @runtimeProperty("ModSettings.displayName", "Require Lynx Paws")
-    @runtimeProperty("ModSettings.description", "Wall running and jumping only work when Lynx Paw leg cyberware is equipped")
-    @runtimeProperty("ModSettings.dependency", "enabled")
-    public let requireLynxPaws: Bool = true;
-
-    @runtimeProperty("ModSettings.mod", "Overclocked Lynx Paws")
-    @runtimeProperty("ModSettings.category", "Parkour")
-    @runtimeProperty("ModSettings.category.order", "3")
-    @runtimeProperty("ModSettings.displayName", "Require Sprint Key")
+    @runtimeProperty("ModSettings.displayName", "Parkour Requires Sprint Key")
     @runtimeProperty("ModSettings.description", "Wall run and climb require holding the sprint key")
     @runtimeProperty("ModSettings.dependency", "enabled")
     public let requireSprint: Bool = false;
 
     @runtimeProperty("ModSettings.mod", "Overclocked Lynx Paws")
-    @runtimeProperty("ModSettings.category", "Parkour")
-    @runtimeProperty("ModSettings.category.order", "3")
+    @runtimeProperty("ModSettings.category", "General")
+    @runtimeProperty("ModSettings.category.order", "1")
+    @runtimeProperty("ModSettings.displayName", "Parkour Requires Lynx Paws")
+    @runtimeProperty("ModSettings.description", "Wall running and jumping only work when Lynx Paw leg cyberware is equipped")
+    @runtimeProperty("ModSettings.dependency", "enabled")
+    public let requireLynxPaws: Bool = true;
+
+    @runtimeProperty("ModSettings.mod", "Overclocked Lynx Paws")
+    @runtimeProperty("ModSettings.category", "General")
+    @runtimeProperty("ModSettings.category.order", "1")
+    @runtimeProperty("ModSettings.displayName", "Safe Landing Requires Lynx Paws")
+    @runtimeProperty("ModSettings.description", "Safe landing rolls only work when Lynx Paw leg cyberware is equipped")
+    @runtimeProperty("ModSettings.dependency", "enabled")
+    public let requireLynxPawsForSafeLanding: Bool = true;
+
+    @runtimeProperty("ModSettings.mod", "Overclocked Lynx Paws")
+    @runtimeProperty("ModSettings.category", "General")
+    @runtimeProperty("ModSettings.category.order", "1")
     @runtimeProperty("ModSettings.displayName", "Enable Kerenzikov Support")
     @runtimeProperty("ModSettings.description", "Activate Kerenzikov (if equipped) when aiming down sights during wall run")
     @runtimeProperty("ModSettings.dependency", "enabled")
     public let triggerKerenzikov: Bool = true;
+
+    @runtimeProperty("ModSettings.mod", "Overclocked Lynx Paws")
+    @runtimeProperty("ModSettings.category", "General")
+    @runtimeProperty("ModSettings.category.order", "1")
+    @runtimeProperty("ModSettings.displayName", "Natural Sounds")
+    @runtimeProperty("ModSettings.description", "Replaces cybernetic sfx with more subtle natural sounds")
+    @runtimeProperty("ModSettings.dependency", "enabled")
+    public let useNaturalSounds: Bool = false;
 
     // ── Progression ─────────────────────────────────────────────────────
 
@@ -201,14 +207,6 @@ public class WallRunSettings extends ScriptableSystem {
     public let chainBonusDuration: Float = 1.0;
 
     // ── Safe Landing Roll ─────────────────────────────────────────────
-
-    @runtimeProperty("ModSettings.mod", "Overclocked Lynx Paws")
-    @runtimeProperty("ModSettings.category", "Safe Landing Roll")
-    @runtimeProperty("ModSettings.category.order", "8")
-    @runtimeProperty("ModSettings.displayName", "Require Lynx Paws")
-    @runtimeProperty("ModSettings.description", "Safe landing rolls only work when Lynx Paw leg cyberware is equipped")
-    @runtimeProperty("ModSettings.dependency", "enabled")
-    public let requireLynxPawsForSafeLanding: Bool = true;
 
     @runtimeProperty("ModSettings.mod", "Overclocked Lynx Paws")
     @runtimeProperty("ModSettings.category", "Safe Landing Roll")
