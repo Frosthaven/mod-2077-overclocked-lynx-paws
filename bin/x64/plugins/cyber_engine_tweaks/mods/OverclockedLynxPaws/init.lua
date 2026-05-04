@@ -127,10 +127,16 @@ function OverclockedLynxPaws:New()
             end
         end)
 
-        -- Hook game climb/vault: trigger our ledge mount during wall phases
+        -- Hook game climb/vault: trigger our ledge mount only during wall climb.
+        -- Wall RUN deliberately yields to the game's native climb/vault so the
+        -- player isn't pulled up onto a ledge mid-run against their intent.
         local WallDetect = require("walldetect")
         local function onClimbOrVault()
             if wallState.phase == "IDLE" or wallState.phase == "LEDGE_MOUNTING" then return end
+            if wallState.phase ~= "WALL_CLIMBING" then
+                Phases.yieldToGame()
+                return
+            end
             local wn = wallState.wallNormal or wallState.lastKickWallNormal
             if not wn then
                 local hit, normal = WallDetect.detectForwardWall()
@@ -163,6 +169,7 @@ function OverclockedLynxPaws:New()
             if self._Kerenzikov then self._Kerenzikov.deactivate() end
             if self._Helpers then self._Helpers.applyCameraRoll(0) end
         end
+        if self._Helpers then self._Helpers.endWallYSensitivity() end
         -- Clear mod facts so a CET reload mid-flight can't leave the Redscript
         -- hooks reading stale state (e.g. wr_safe_land = 1 forever).
         local ok, SafeLanding = pcall(require, "safelanding")

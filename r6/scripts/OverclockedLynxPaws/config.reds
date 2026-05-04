@@ -56,8 +56,8 @@ public class WallRunSettings extends ScriptableSystem {
     @runtimeProperty("ModSettings.mod", "Overclocked Lynx Paws")
     @runtimeProperty("ModSettings.category", "Controls")
     @runtimeProperty("ModSettings.category.order", "2")
-    @runtimeProperty("ModSettings.displayName", "Mouse X Sensitivity")
-    @runtimeProperty("ModSettings.description", "Mouse horizontal look speed during wall phases. Independent of the game's mouse sensitivity.")
+    @runtimeProperty("ModSettings.displayName", "Mouse X Multiplier")
+    @runtimeProperty("ModSettings.description", "Mouse horizontal look speed multiplier applied on top of the game's mouse sensitivity during wall phases.")
     @runtimeProperty("ModSettings.step", "0.05")
     @runtimeProperty("ModSettings.min", "0.5")
     @runtimeProperty("ModSettings.max", "5.0")
@@ -67,8 +67,8 @@ public class WallRunSettings extends ScriptableSystem {
     @runtimeProperty("ModSettings.mod", "Overclocked Lynx Paws")
     @runtimeProperty("ModSettings.category", "Controls")
     @runtimeProperty("ModSettings.category.order", "2")
-    @runtimeProperty("ModSettings.displayName", "Mouse Y Sensitivity")
-    @runtimeProperty("ModSettings.description", "Mouse vertical look speed during wall phases. Independent of the game's mouse sensitivity.")
+    @runtimeProperty("ModSettings.displayName", "Mouse Y Multiplier")
+    @runtimeProperty("ModSettings.description", "Mouse vertical look speed multiplier applied on top of the game's mouse sensitivity during wall phases.")
     @runtimeProperty("ModSettings.step", "0.05")
     @runtimeProperty("ModSettings.min", "0.5")
     @runtimeProperty("ModSettings.max", "5.0")
@@ -82,7 +82,7 @@ public class WallRunSettings extends ScriptableSystem {
     @runtimeProperty("ModSettings.description", "Controller horizontal look speed during wall phases. Independent of the game's controller sensitivity.")
     @runtimeProperty("ModSettings.step", "1.0")
     @runtimeProperty("ModSettings.min", "1.0")
-    @runtimeProperty("ModSettings.max", "30.0")
+    @runtimeProperty("ModSettings.max", "100.0")
     @runtimeProperty("ModSettings.dependency", "enabled")
     public let lookSensControllerX: Float = 15.0;
 
@@ -93,7 +93,7 @@ public class WallRunSettings extends ScriptableSystem {
     @runtimeProperty("ModSettings.description", "Controller vertical look speed during wall phases. Independent of the game's controller sensitivity.")
     @runtimeProperty("ModSettings.step", "1.0")
     @runtimeProperty("ModSettings.min", "1.0")
-    @runtimeProperty("ModSettings.max", "30.0")
+    @runtimeProperty("ModSettings.max", "100.0")
     @runtimeProperty("ModSettings.dependency", "enabled")
     public let lookSensControllerY: Float = 15.0;
 

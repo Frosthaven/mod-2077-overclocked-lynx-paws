@@ -63,7 +63,11 @@ function Helpers.meetsMinimumSpeed()
     return Vector4.Length2D(wallState.player:GetVelocity()) > 5.3
 end
 
---- Cast a ray from origin along direction for a given distance using bullet logic preset.
+--- Cast a ray from origin along direction for a given distance.
+--- Primary pass uses the "Bullet logic" preset (Static, Terrain, Vehicle, NPC,
+--- etc.); fallback passes target collision groups the preset misses so devices
+--- (vending machines, terminals, kiosks) and edge-case vehicle colliders can
+--- act as walls. First hit wins; non-hits add ~1 µs each.
 --- @param origin Vector4 World-space start position.
 --- @param direction Vector4 Normalized direction vector.
 --- @param distance number Maximum ray distance in meters.
@@ -72,9 +76,21 @@ end
 --- @return number hitDist Distance to hit point, or 999 on miss.
 function Helpers.raycast(origin, direction, distance)
     local to = vectorAdd(origin, vectorMulFloat(direction, distance))
-    local hit, trace = Game.GetSpatialQueriesSystem():SyncRaycastByQueryPreset(
+    local sqs = Game.GetSpatialQueriesSystem()
+
+    local hit, trace = sqs:SyncRaycastByQueryPreset(
         origin, to, CName.new("Bullet logic"), true, false
     )
+    if not hit then
+        hit, trace = sqs:SyncRaycastByCollisionGroup(
+            origin, to, CName.new("Interaction"), false, false
+        )
+    end
+    if not hit then
+        hit, trace = sqs:SyncRaycastByCollisionGroup(
+            origin, to, CName.new("Vehicle"), false, false
+        )
+    end
     if hit then
         local hp = Vector4.new(
             trace.position.x, trace.position.y, trace.position.z, 0
@@ -350,51 +366,65 @@ function Helpers.applyAimAssist(dt)
 end
 
 --- Consume pending mouse and gamepad right-stick X input to compute a yaw delta.
---- Mouse: CameraMouseX arrives pre-scaled by vanilla FPP_MouseX. We divide that
---- out so the mod's slider becomes the authoritative wall-phase mouse sensitivity.
---- Controller: stick is raw -1..1; we apply our own sensitivity directly (no read
---- of vanilla FPP_PadX).
+--- Mouse: CameraMouseX arrives pre-scaled by vanilla FPP_MouseX; our slider is
+--- a relative multiplier on top (slider=1.0 matches pre-slider behavior).
+--- Controller: stick is raw -1..1; we apply our own sensitivity directly.
 --- @param dt number Delta time in seconds.
 --- @return number Yaw delta in degrees.
 function Helpers.consumeAimYaw(dt)
-    local ss = Game.GetSettingsSystem()
-    local vMouseX = ss:GetVar("/controls/fppcameramouse", "FPP_MouseX")
-    local vSensX = (vMouseX and vMouseX:GetValue()) or 1.0
-    local rawX = camera.pendingMouseDeltaX / math.max(0.01, vSensX)
-    local mouseYaw = rawX * 0.075 * cfg.lookSensMouseX
-
+    local mouseYaw = camera.pendingMouseDeltaX * 0.075 * cfg.lookSensMouseX
     local padYaw = camera.rightStickX * cfg.lookSensControllerX * 10.0 * dt
-
     camera.pendingMouseDeltaX = 0
     return mouseYaw + padYaw
 end
 
---- Consume pending mouse and gamepad right-stick Y input to compute a pitch delta.
---- Same divide-out-vanilla approach for mouse so the slider is authoritative.
---- Negation aligns "stick/mouse down → look up" with the engine's post-invert convention.
---- @param dt number Delta time in seconds.
---- @return number Pitch delta in degrees (positive = look up).
-function Helpers.consumePitch(dt)
-    local ss = Game.GetSettingsSystem()
-    local vMouseY = ss:GetVar("/controls/fppcameramouse", "FPP_MouseY")
-    local vSensY = (vMouseY and vMouseY:GetValue()) or 1.0
-    local rawY = camera.pendingMouseDeltaY / math.max(0.01, vSensY)
-    local mousePitch = -rawY * 0.075 * cfg.lookSensMouseY
-
-    local padPitch = -camera.rightStickY * cfg.lookSensControllerY * 10.0 * dt
-
-    camera.pendingMouseDeltaY = 0
-    return mousePitch + padPitch
-end
-
---- Apply camera roll AND tracked pitch to the player's first-person camera component.
---- Combined into one SetLocalOrientation so we don't double-write per frame.
+--- Apply camera roll to the player's first-person camera component.
+--- Pitch is left at 0 (no offset) so the engine's aim-pitch state drives both
+--- camera AND weapon attachment naturally — writing trackedPitch here moved
+--- only the camera, leaving the gun pinned at engine pitch.
 --- @param roll number The roll angle in degrees (positive tilts left).
 function Helpers.applyCameraRoll(roll)
     local camComp = wallState.player:GetFPPCameraComponent()
     if camComp then
-        local quat = EulerAngles.ToQuat(EulerAngles.new(-roll, camera.trackedPitch, 0))
+        local quat = EulerAngles.ToQuat(EulerAngles.new(-roll, 0, 0))
         camComp:SetLocalOrientation(quat)
+    end
+end
+
+local cachedFPP_MouseY, cachedFPP_PadY
+
+--- Cache vanilla Y sensitivity and write scaled values for wall phases.
+--- Lets the engine drive both camera AND weapon pitch naturally while still
+--- honoring our slider — the engine's input multiplier becomes vanilla*slider.
+--- Idempotent: re-entering when already active is a no-op.
+function Helpers.beginWallYSensitivity()
+    if cachedFPP_MouseY ~= nil then return end
+    local ss = Game.GetSettingsSystem()
+    local vMouseY = ss:GetVar("/controls/fppcameramouse", "FPP_MouseY")
+    local vPadY   = ss:GetVar("/controls/fppcamerapad",  "FPP_PadY")
+    if vMouseY then
+        cachedFPP_MouseY = vMouseY:GetValue()
+        pcall(function() vMouseY:SetValue(cachedFPP_MouseY * cfg.lookSensMouseY) end)
+    end
+    if vPadY then
+        cachedFPP_PadY = vPadY:GetValue()
+        pcall(function() vPadY:SetValue(cachedFPP_PadY * (cfg.lookSensControllerY / 15.0)) end)
+    end
+end
+
+--- Restore cached vanilla Y sensitivity. Safe to call when not active.
+function Helpers.endWallYSensitivity()
+    if cachedFPP_MouseY == nil and cachedFPP_PadY == nil then return end
+    local ss = Game.GetSettingsSystem()
+    if cachedFPP_MouseY ~= nil then
+        local vMouseY = ss:GetVar("/controls/fppcameramouse", "FPP_MouseY")
+        if vMouseY then pcall(function() vMouseY:SetValue(cachedFPP_MouseY) end) end
+        cachedFPP_MouseY = nil
+    end
+    if cachedFPP_PadY ~= nil then
+        local vPadY = ss:GetVar("/controls/fppcamerapad", "FPP_PadY")
+        if vPadY then pcall(function() vPadY:SetValue(cachedFPP_PadY) end) end
+        cachedFPP_PadY = nil
     end
 end
 
@@ -433,10 +463,6 @@ function Helpers.findLedgeTop(pos, wallNormal)
     local wallDir = Vector4.new(-wallNormal.x, -wallNormal.y, 0, 0)
     local rayLen = cfg.wallDetectDistance * 2
 
-    -- Find the highest h within scan range where the wall hits. The mount
-    -- candidate sits one scan-step above this so we always land above the
-    -- wall's actual topmost surface — never inside a slat gap on a thin
-    -- fence and never on a fake ledge in a hole/window.
     local highestHitH
     for h = -0.5, 1.2, 0.2 do
         local testOrigin = Vector4.new(pos.x, pos.y, pos.z + h, 0)
@@ -446,13 +472,9 @@ function Helpers.findLedgeTop(pos, wallNormal)
     end
     if not highestHitH then return nil end
 
-    -- Candidate ledge top must be above the player's feet to be reachable.
     local candidateH = highestHitH + 0.2
     if candidateH <= 0 then return nil end
 
-    -- Verify wall doesn't continue above the candidate. Dense 10 cm sweep
-    -- catches slatted-fence plank patterns whose period the previous
-    -- {0.4, 0.8, 1.4} sampling could alias through.
     local resumeRange = cfg.targetWallDist + 0.4
     for dh = 0.1, 1.4, 0.1 do
         local upOrigin = Vector4.new(pos.x, pos.y, pos.z + candidateH + dh, 0)
@@ -461,12 +483,6 @@ function Helpers.findLedgeTop(pos, wallNormal)
         end
     end
 
-    -- Verify any solid surface past the wall (within 20 m below candidate).
-    -- Drops the previous ±1 m height tolerance so tall fences on flat ground
-    -- still mount — the resume sweep above already verified the candidate is
-    -- above the wall structure, and the actual mount animation re-probes for
-    -- the landing surface separately. We just need to confirm we're not
-    -- mounting over pure void.
     for _, d in ipairs({ 0.5, 0.8, 1.1 }) do
         local pastX = pos.x + wallDir.x * d
         local pastY = pos.y + wallDir.y * d

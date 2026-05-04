@@ -149,6 +149,7 @@ local function cleanupWallState()
     wallState.mantisGrabThrust = nil
     end
     Kerenzikov.deactivate()
+    Helpers.endWallYSensitivity()
     -- Soft camera reset: let IDLE lerp smoothly unroll
     camera.targetTilt = 0
     Helpers.stopSound("lcm_fs_additional_tiles_slide")
@@ -194,11 +195,9 @@ local function enterWallRun(side, rayDir, wallNormal, isChain)
     camera.rollBlendProgress = 0
     camera.tilt       = 0
     camera.trackedYaw   = wallState.player:GetWorldYaw()
-    -- Seed pitch from current camera forward so the player doesn't snap on entry
-    local _fwd = Game.GetCameraSystem():GetActiveCameraForward()
-    camera.trackedPitch = math.deg(math.atan2(_fwd.z, math.sqrt(_fwd.x*_fwd.x + _fwd.y*_fwd.y)))
     camera.pendingMouseDeltaX = 0
     camera.pendingMouseDeltaY = 0
+    Helpers.beginWallYSensitivity()
     setClimbBlock(true)
     wallState.isClimbBlocked = true
     wallState.wallLostTimer = nil
@@ -389,14 +388,11 @@ enterWallClimb = function(wallNormal, isChain)
     camera.targetTilt = 0
     camera.rollBlendProgress = 0
     camera.tilt       = 0
-    -- Seed pitch from current camera forward BEFORE applyCameraRoll so the
-    -- camera doesn't snap to a stale trackedPitch on entry.
-    local _fwd = Game.GetCameraSystem():GetActiveCameraForward()
-    camera.trackedPitch = math.deg(math.atan2(_fwd.z, math.sqrt(_fwd.x*_fwd.x + _fwd.y*_fwd.y)))
     Helpers.applyCameraRoll(0)
     camera.trackedYaw   = wallState.player:GetWorldYaw()
     camera.pendingMouseDeltaX = 0
     camera.pendingMouseDeltaY = 0
+    Helpers.beginWallYSensitivity()
 
     if not isChain then Helpers.playSound("lcm_wallrun_in") end
     Kerenzikov.awardShinobiXP(isChain and 7.0 or 5.0)
@@ -917,7 +913,6 @@ local function updateWallRunning(dt, airborne, dashCancel, LynxPaw)
     Helpers.queueImpulse(Vector4.new(0, 0, 0, 0))
     Helpers.applyAimAssist(dt)
     camera.trackedYaw = camera.trackedYaw - Helpers.consumeAimYaw(dt)
-    camera.trackedPitch = math.max(-89, math.min(89, camera.trackedPitch + Helpers.consumePitch(dt)))
 
     Game.GetTeleportationFacility():Teleport(
         wallState.player,
@@ -944,11 +939,6 @@ local function updateWallRunning(dt, airborne, dashCancel, LynxPaw)
     if not cfg.unlimitedWallRun and not wallState.kerenzikovActive then
         wallState.timer = wallState.timer - dt
         if wallState.timer <= 0 then
-            -- Try ledge mount first when wall run expires near a top
-            if Helpers.findLedgeTop(pos, wallState.wallNormal) then
-                beginLedgeMount(wallState.wallNormal)
-                return
-            end
             if not cfg.unlimitedWallSlide and wallState.slideBudget <= 0 then
                 exitWallRun()
                 return
@@ -1119,7 +1109,6 @@ local function updateWallClimbing(dt, airborne, dashCancel, LynxPaw)
     Helpers.queueImpulse(Vector4.new(0, 0, 0, 0))
     Helpers.applyAimAssist(dt)
     camera.trackedYaw = camera.trackedYaw - Helpers.consumeAimYaw(dt)
-    camera.trackedPitch = math.max(-89, math.min(89, camera.trackedPitch + Helpers.consumePitch(dt)))
 
     Game.GetTeleportationFacility():Teleport(
         wallState.player, newPos,
@@ -1211,7 +1200,6 @@ local function updateWallSliding(dt, airborne, dashCancel, LynxPaw)
     Helpers.queueImpulse(Vector4.new(0, 0, 0, 0))
     Helpers.applyAimAssist(dt)
     camera.trackedYaw = camera.trackedYaw - Helpers.consumeAimYaw(dt)
-    camera.trackedPitch = math.max(-89, math.min(89, camera.trackedPitch + Helpers.consumePitch(dt)))
 
     Game.GetTeleportationFacility():Teleport(
         wallState.player, newPos,
@@ -1281,7 +1269,6 @@ local function updateWallJumpAim(dt, airborne, dashCancel, LynxPaw)
         wallState.aimHoldY = pos.y
     end
     camera.trackedYaw = camera.trackedYaw - Helpers.consumeAimYaw(dt)
-    camera.trackedPitch = math.max(-89, math.min(89, camera.trackedPitch + Helpers.consumePitch(dt)))
     Game.GetTeleportationFacility():Teleport(
         wallState.player,
         Vector4.new(wallState.aimHoldX, wallState.aimHoldY, wallState.aimHoldZ, 1),
@@ -1510,7 +1497,6 @@ local function updateMantisGrab(dt, airborne, dashCancel, LynxPaw)
     if timer >= panTotal then
         -- Pan finished — let the player aim freely
         camera.trackedYaw = camera.trackedYaw - Helpers.consumeAimYaw(dt)
-        camera.trackedPitch = math.max(-89, math.min(89, camera.trackedPitch + Helpers.consumePitch(dt)))
     end
     Game.GetTeleportationFacility():Teleport(
         wallState.player,
@@ -1571,7 +1557,6 @@ local function updateWallJumping(dt, airborne, dashCancel, LynxPaw)
             end
         else
             camera.trackedYaw = camera.trackedYaw - Helpers.consumeAimYaw(dt)
-            camera.trackedPitch = math.max(-89, math.min(89, camera.trackedPitch + Helpers.consumePitch(dt)))
 
             local newPos = Vector4.new(
                 pos.x + moveX, pos.y + moveY, pos.z + moveZ, pos.w
@@ -1679,7 +1664,6 @@ local function updateExitPush(dt, airborne, dashCancel, LynxPaw)
         Helpers.applyCameraRoll(camera.tilt)
 
         camera.trackedYaw = camera.trackedYaw - Helpers.consumeAimYaw(dt)
-        camera.trackedPitch = math.max(-89, math.min(89, camera.trackedPitch + Helpers.consumePitch(dt)))
 
         local hSpeed = speed
         if grounded then
