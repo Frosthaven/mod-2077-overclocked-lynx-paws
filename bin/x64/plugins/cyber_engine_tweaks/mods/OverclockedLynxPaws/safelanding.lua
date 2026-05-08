@@ -147,19 +147,11 @@ function SafeLanding.updateRoll(dt)
     local t = wallState.safeRollTimer / wallState.safeRollDuration
 
     if t < 1.0 then
-        -- Hide player mesh: at 15% normally, or immediately when camera spin
-        -- is disabled (otherwise the crouched body would be visible right
-        -- under the lowered camera).
-        local hideThreshold = cfg.safeLandDisableCameraSpin and 0 or 0.15
-        if not wallState.safeRollMeshIsHidden and t >= hideThreshold then
+        -- Hide on first frame and hold hidden until standup
+        -- (restore handled in updateUncrouch). Same for both spin modes.
+        if not wallState.safeRollMeshIsHidden then
             Helpers.hideCharacterModel()
             wallState.safeRollMeshIsHidden = true
-        end
-        -- Restore player mesh at 70% — but if camera spin is disabled, hold
-        -- the model hidden until the player stands up (handled in updateUncrouch),
-        -- so the absent crouched body doesn't pop into view mid-slide.
-        if wallState.safeRollMeshIsHidden and t >= 0.7 and not cfg.safeLandDisableCameraSpin then
-            SafeLanding.restoreModelAndWeapon()
         end
         -- Per-frame forward impulse (dt-scaled for framerate independence)
         local d = wallState.safeRollDir
