@@ -281,6 +281,14 @@ public class WallRunSettings extends ScriptableSystem {
     @runtimeProperty("ModSettings.dependency", "enabled")
     public let safeLandAnyHeight: Bool = false;
 
+    @runtimeProperty("ModSettings.mod", "Overclocked Lynx Paws")
+    @runtimeProperty("ModSettings.category", "Safe Landing Roll")
+    @runtimeProperty("ModSettings.category.order", "8")
+    @runtimeProperty("ModSettings.displayName", "Disable Camera Spin")
+    @runtimeProperty("ModSettings.description", "Disables the 360 degrees camera spin. Useful for motion sensitivity")
+    @runtimeProperty("ModSettings.dependency", "enabled")
+    public let safeLandDisableCameraSpin: Bool = false;
+
     // ── Can't Get Enough? ─────────────────────────────────────────────────
 
     @runtimeProperty("ModSettings.mod", "Overclocked Lynx Paws")

@@ -169,6 +169,13 @@ function OverclockedLynxPaws:New()
             if self._Kerenzikov then self._Kerenzikov.deactivate() end
             if self._Helpers then self._Helpers.applyCameraRoll(0) end
         end
+        -- Restore camera offset in case shutdown lands during a safe roll
+        if self._wallState and self._wallState.player then
+            pcall(function()
+                local camComp = self._wallState.player:GetFPPCameraComponent()
+                if camComp then camComp:SetLocalPosition(Vector4.new(0, 0, 0, 0)) end
+            end)
+        end
         if self._Helpers then self._Helpers.endWallYSensitivity() end
         -- Clear mod facts so a CET reload mid-flight can't leave the Redscript
         -- hooks reading stale state (e.g. wr_safe_land = 1 forever).

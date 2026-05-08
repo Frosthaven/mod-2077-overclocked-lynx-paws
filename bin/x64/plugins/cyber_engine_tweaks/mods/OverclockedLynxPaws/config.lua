@@ -32,6 +32,7 @@ local cfg = {
     safeLandWindow     = 0.40,  -- seconds before landing to buffer crouch
     safeLandAlways     = false, -- always safe land on damaging heights
     safeLandAnyHeight  = false, -- survive even lethal falls (loco 26)
+    safeLandDisableCameraSpin = false, -- skip the 360° camera spin during safe landing (motion-sensitivity friendly)
     gainShinobiSkill   = true,  -- award Shinobi (Reflexes) skill XP for wall actions
     requireSprint      = false, -- require sprint key held for wall run/climb
     drainStamina       = true,  -- drain stamina during wall actions
@@ -50,7 +51,7 @@ local syncFields = {
     "wallRunDuration", "wallClimbDuration", "wallSlideDuration",
     "maxWallChains", "chainBonusDuration",
     "triggerKerenzikov", "wallKickAimHold", "wallKickForce",
-    "cameraTilt", "safeLandWindow", "safeLandAlways", "safeLandAnyHeight",
+    "cameraTilt", "safeLandWindow", "safeLandAlways", "safeLandAnyHeight", "safeLandDisableCameraSpin",
     "unlimitedWallRun", "unlimitedWallClimb", "unlimitedWallSlide",
     "unlimitedHangtime", "unlimitedWallChains",
     "gainShinobiSkill", "requireSprint", "drainStamina", "staminaScalesShinobi", "wallRunEntryAngle",

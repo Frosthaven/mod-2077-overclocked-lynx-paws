@@ -118,6 +118,25 @@ function SafeLanding.updateRollSound(dt)
     end
 end
 
+--- Show character + weapon meshes and queue a re-equip request. Idempotent
+--- via the safeRollMeshIsHidden / safeRollShouldReequip flags so callers
+--- (mid-roll restore at 70% OR standup restore on spin-disabled rolls) can
+--- both hit it safely.
+function SafeLanding.restoreModelAndWeapon()
+    if wallState.safeRollMeshIsHidden then
+        Helpers.showCharacterModel()
+        Helpers.showWeaponModel()
+        wallState.safeRollMeshIsHidden = false
+    end
+    if wallState.safeRollShouldReequip then
+        local equipReq = NewObject("EquipmentSystemWeaponManipulationRequest")
+        equipReq.requestType = EquipmentManipulationAction.ReequipWeapon
+        equipReq.owner = wallState.player
+        Game.GetScriptableSystemsContainer():Get(CName.new("EquipmentSystem")):QueueRequest(equipReq)
+        wallState.safeRollShouldReequip = false
+    end
+end
+
 --- Update the safe roll animation each frame: teleport forward with collision and apply camera pitch spin.
 --- @param dt number Delta time in seconds.
 --- @return boolean True if a roll is actively in progress.
@@ -128,25 +147,19 @@ function SafeLanding.updateRoll(dt)
     local t = wallState.safeRollTimer / wallState.safeRollDuration
 
     if t < 1.0 then
-        -- Hide player mesh at 15%
-        if not wallState.safeRollMeshIsHidden and t >= 0.15 then
+        -- Hide player mesh: at 15% normally, or immediately when camera spin
+        -- is disabled (otherwise the crouched body would be visible right
+        -- under the lowered camera).
+        local hideThreshold = cfg.safeLandDisableCameraSpin and 0 or 0.15
+        if not wallState.safeRollMeshIsHidden and t >= hideThreshold then
             Helpers.hideCharacterModel()
             wallState.safeRollMeshIsHidden = true
         end
-        -- Restore player mesh at 70% (includes slot reattach for skeleton fix)
-        if wallState.safeRollMeshIsHidden and t >= 0.7 then
-            Helpers.showCharacterModel()
-            wallState.safeRollMeshIsHidden = false
-            -- Restore weapon meshes before re-equip
-            Helpers.showWeaponModel()
-            -- Re-equip weapon
-            if wallState.safeRollShouldReequip then
-                local equipReq = NewObject("EquipmentSystemWeaponManipulationRequest")
-                equipReq.requestType = EquipmentManipulationAction.ReequipWeapon
-                equipReq.owner = wallState.player
-                Game.GetScriptableSystemsContainer():Get(CName.new("EquipmentSystem")):QueueRequest(equipReq)
-                wallState.safeRollShouldReequip = false
-            end
+        -- Restore player mesh at 70% — but if camera spin is disabled, hold
+        -- the model hidden until the player stands up (handled in updateUncrouch),
+        -- so the absent crouched body doesn't pop into view mid-slide.
+        if wallState.safeRollMeshIsHidden and t >= 0.7 and not cfg.safeLandDisableCameraSpin then
+            SafeLanding.restoreModelAndWeapon()
         end
         -- Per-frame forward impulse (dt-scaled for framerate independence)
         local d = wallState.safeRollDir
@@ -157,21 +170,31 @@ function SafeLanding.updateRoll(dt)
             imp.impulse = Vector4.new(d.x * spd, d.y * spd, 0, 0)
             wallState.player:QueueEvent(imp)
         end
-        -- Camera pitch: 0.1s delay then full 360-degree forward roll
-        -- Ease-in-out: slow at start and end, fast in the middle
-        local delay = 0.1
-        local elapsed = wallState.safeRollTimer
-        local pitch = 0
-        if elapsed > delay then
-            local spinT = (elapsed - delay) / (wallState.safeRollDuration - delay)
-            -- Smoothstep ease-in-out: 3t^2 - 2t^3
-            local eased = Helpers.smoothstep(spinT)
-            pitch = -eased * 360.0
-        end
         local camComp = wallState.player:GetFPPCameraComponent()
         if camComp then
-            local quat = EulerAngles.ToQuat(EulerAngles.new(0, pitch, 0))
-            camComp:SetLocalOrientation(quat)
+            -- Camera drop: fast 0.1s lerp down to -1.4m, hold, fast 0.1s lerp
+            -- back up at the end. Reads as a quick physical drop into the roll.
+            local elapsed = wallState.safeRollTimer
+            local lerpDur = 0.1
+            local dropDepth = -0.7
+            local zOffset = dropDepth
+            if elapsed < lerpDur then
+                zOffset = dropDepth * (elapsed / lerpDur)
+            elseif elapsed > wallState.safeRollDuration - lerpDur then
+                local backT = (wallState.safeRollDuration - elapsed) / lerpDur
+                zOffset = dropDepth * math.max(0, backT)
+            end
+            camComp:SetLocalPosition(Vector4.new(0, 0, zOffset, 0))
+            if not cfg.safeLandDisableCameraSpin then
+                -- Camera pitch: 0.1s delay then full 360° forward roll, smoothstep eased.
+                local delay = 0.1
+                local pitch = 0
+                if elapsed > delay then
+                    local spinT = (elapsed - delay) / (wallState.safeRollDuration - delay)
+                    pitch = -Helpers.smoothstep(spinT) * 360.0
+                end
+                camComp:SetLocalOrientation(EulerAngles.ToQuat(EulerAngles.new(0, pitch, 0)))
+            end
         end
     else
         -- Roll complete — store speed for exit impulse at uncrouch
@@ -179,11 +202,11 @@ function SafeLanding.updateRoll(dt)
         wallState.safeRollTimer = nil
         -- Start uncrouch → sprint sequence (no delay — immediate)
         wallState.safeRollUncrouch = 0.01
-        -- Reset camera orientation
+        -- Reset camera position and orientation
         local camComp = wallState.player:GetFPPCameraComponent()
         if camComp then
-            local quat = EulerAngles.ToQuat(EulerAngles.new(0, 0, 0))
-            camComp:SetLocalOrientation(quat)
+            camComp:SetLocalPosition(Vector4.new(0, 0, 0, 0))
+            camComp:SetLocalOrientation(EulerAngles.ToQuat(EulerAngles.new(0, 0, 0)))
         end
     end
     return true
@@ -205,6 +228,9 @@ function SafeLanding.updateUncrouch(dt)
 
         wallState.safeRollUncrouch = wallState.safeRollUncrouch - dt
         if wallState.safeRollUncrouch <= 0 then
+            -- If the model was held hidden through the whole roll (spin
+            -- disabled path), restore it now at standup.
+            SafeLanding.restoreModelAndWeapon()
             -- Remove ForceCrouch status effect
             StatusEffectHelper.RemoveStatusEffect(wallState.player,
                 TweakDBID.new("GameplayRestriction.ForceCrouch"))
