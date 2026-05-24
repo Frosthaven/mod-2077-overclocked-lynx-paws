@@ -59,7 +59,7 @@ public class WallRunSettings extends ScriptableSystem {
     @runtimeProperty("ModSettings.displayName", "Mouse X Sensitivity Multiplier")
     @runtimeProperty("ModSettings.description", "Mouse horizontal look speed multiplier applied on top of the game's mouse sensitivity during wall phases.")
     @runtimeProperty("ModSettings.step", "0.05")
-    @runtimeProperty("ModSettings.min", "0.5")
+    @runtimeProperty("ModSettings.min", "0.0")
     @runtimeProperty("ModSettings.max", "5.0")
     @runtimeProperty("ModSettings.dependency", "enabled")
     public let lookSensMouseX: Float = 1.0;
@@ -70,7 +70,7 @@ public class WallRunSettings extends ScriptableSystem {
     @runtimeProperty("ModSettings.displayName", "Mouse Y Sensitivity Multiplier")
     @runtimeProperty("ModSettings.description", "Mouse vertical look speed multiplier applied on top of the game's mouse sensitivity during wall phases.")
     @runtimeProperty("ModSettings.step", "0.05")
-    @runtimeProperty("ModSettings.min", "0.5")
+    @runtimeProperty("ModSettings.min", "0.0")
     @runtimeProperty("ModSettings.max", "5.0")
     @runtimeProperty("ModSettings.dependency", "enabled")
     public let lookSensMouseY: Float = 1.0;
