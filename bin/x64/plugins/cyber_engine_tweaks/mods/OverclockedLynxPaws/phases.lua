@@ -37,6 +37,7 @@ local WALL_BOUNCE_LOCKOUT    = 0.25    -- seconds after a bounce before walls ca
 local AIM_KICK_ARC_RATIO   = 0.75      -- vertical boost as fraction of kick force (aim kick)
 local RHANG_SCOOP_DEG      = 12        -- pitch scoop amplitude during reverse hang (degrees)
 local WALL_RUN_GRACE_DURATION  = 0.25  -- seconds to ride through small wall gaps
+local CLIMB_LEDGE_GRACE        = 0.25  -- min climb time before continuous ledge-detect can mount (blocks instant vault-through)
 local WALL_RUN_VERT_PROBE_OFFSET = 0.8 -- height above/below targetZ to probe wall existence
 -- Minimum wall run lateral speed (m/s) is configurable via cfg.wallRunSpeed
 local WALL_RUN_MIN_ENTRY_SPEED = 12.0 -- minimum entry speed for wall run (m/s)
@@ -1104,10 +1105,14 @@ local function updateWallClimbing(dt, airborne, dashCancel, LynxPaw)
     -- pos.z rises high enough that a real ledge is in reach, instead of
     -- waiting for the climb timer to expire — fixes the case where a
     -- tall fence's cap is just above where the timer would otherwise end.
+    -- Continuous detection waits out a brief grace so a wall jumped into
+    -- head-on doesn't instantly vault the player over/through before any real
+    -- climb happens. Legit ledges are reached after climbing (past the grace).
     wallState.ledgeCheckTimer = (wallState.ledgeCheckTimer or 0) - dt
     if wallState.ledgeCheckTimer <= 0 then
         wallState.ledgeCheckTimer = 0.1
-        if Helpers.findLedgeTop(pos, wallState.wallNormal) then
+        if (wallState.mountElapsed or 0) >= CLIMB_LEDGE_GRACE
+           and Helpers.findLedgeTop(pos, wallState.wallNormal) then
             beginLedgeMount(wallState.wallNormal)
             return
         end

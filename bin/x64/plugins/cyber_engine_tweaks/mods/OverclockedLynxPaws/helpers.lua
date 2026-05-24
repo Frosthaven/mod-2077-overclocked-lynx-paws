@@ -473,7 +473,11 @@ function Helpers.findLedgeTop(pos, wallNormal)
     local candidateH = highestHitH + 0.2
     if candidateH <= 0 then return nil end
 
-    local resumeRange = cfg.targetWallDist + 0.4
+    -- Use the same reach as the wall scan above (rayLen) so a wall detected at
+    -- 1.0–2.6m (e.g. angled climbs where the player isn't held at targetWallDist)
+    -- is correctly seen to continue — otherwise a tall wall looks like it ended
+    -- at the candidate and we falsely mount mid-wall.
+    local resumeRange = rayLen
     for dh = 0.1, 1.4, 0.1 do
         local upOrigin = Vector4.new(pos.x, pos.y, pos.z + candidateH + dh, 0)
         if Helpers.raycast(upOrigin, wallDir, resumeRange) then
