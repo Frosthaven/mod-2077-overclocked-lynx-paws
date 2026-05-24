@@ -252,6 +252,17 @@ public class WallRunSettings extends ScriptableSystem {
     @runtimeProperty("ModSettings.dependency", "enabled")
     public let chainBonusDuration: Float = 1.0;
 
+    @runtimeProperty("ModSettings.mod", "Overclocked Lynx Paws")
+    @runtimeProperty("ModSettings.category", "Parkour - Wall Jump")
+    @runtimeProperty("ModSettings.category.order", "7")
+    @runtimeProperty("ModSettings.displayName", "Wall Bounce Window")
+    @runtimeProperty("ModSettings.description", "Press jump within this many seconds of mounting a wall to bounce off it, reflecting your entry trajectory. 0 disables bouncing.")
+    @runtimeProperty("ModSettings.step", "0.1")
+    @runtimeProperty("ModSettings.min", "0.0")
+    @runtimeProperty("ModSettings.max", "5.0")
+    @runtimeProperty("ModSettings.dependency", "enabled")
+    public let wallBounceWindow: Float = 0.5;
+
     // ── Safe Landing Roll ─────────────────────────────────────────────
 
     @runtimeProperty("ModSettings.mod", "Overclocked Lynx Paws")

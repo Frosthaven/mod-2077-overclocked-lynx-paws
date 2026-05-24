@@ -24,6 +24,10 @@ local ARC_HEIGHT           = 9.0       -- vertical arc multiplier during wall ki
 local HOVER_DURATION       = 3.0       -- air hover max duration (seconds)
 local PEAK_HOLD_DURATION   = 0         -- pause at climb peak before sliding (seconds)
 local KICK_ARC_RATIO       = 0.15      -- vertical boost as fraction of kick force (wallKick)
+local WALL_BOUNCE_FORCE_MULT = 1.5     -- horizontal exit velocity multiplier for wall bounce
+local WALL_BOUNCE_ARC_MULT   = 5.0     -- base upward-arc multiplier for wall bounce
+local WALL_BOUNCE_PARALLEL_ARC_BONUS = 2.5 -- max extra arc mult when entry was fully parallel to the wall
+local WALL_BOUNCE_LOCKOUT    = 0.25    -- seconds after a bounce before walls can re-engage
 local AIM_KICK_ARC_RATIO   = 0.75      -- vertical boost as fraction of kick force (aim kick)
 local RHANG_SCOOP_DEG      = 12        -- pitch scoop amplitude during reverse hang (degrees)
 local WALL_RUN_GRACE_DURATION  = 0.25  -- seconds to ride through small wall gaps
@@ -188,8 +192,11 @@ local function enterWallRun(side, rayDir, wallNormal, isChain)
     wallState.wallRunUsedThisJump = true
     wallState.entryZ     = wallState.player:GetWorldPosition().z
     wallState.targetZ    = wallState.entryZ
-    wallState.wallRunEntrySpeed = math.max(Vector4.Length2D(wallState.player:GetVelocity()), WALL_RUN_MIN_ENTRY_SPEED)
+    local entryVel = wallState.player:GetVelocity()
+    wallState.wallRunEntrySpeed = math.max(Vector4.Length2D(entryVel), WALL_RUN_MIN_ENTRY_SPEED)
     wallState.wallRunElapsed = 0
+    wallState.entryVelocity = Vector4.new(entryVel.x, entryVel.y, 0, 0)
+    wallState.mountElapsed = 0
     wallState.footstepTimer = 0
     camera.targetTilt = (side == "right") and cfg.cameraTilt or -cfg.cameraTilt
     camera.rollBlendProgress = 0
@@ -384,6 +391,9 @@ enterWallClimb = function(wallNormal, isChain)
     wallState.wallClimbUsedThisJump = true
     wallState.entryZ      = wallState.player:GetWorldPosition().z
     wallState.targetZ     = wallState.entryZ
+    local entryVel = wallState.player:GetVelocity()
+    wallState.entryVelocity = Vector4.new(entryVel.x, entryVel.y, 0, 0)
+    wallState.mountElapsed = 0
     wallState.footstepTimer = 0
     camera.targetTilt = 0
     camera.rollBlendProgress = 0
@@ -408,6 +418,41 @@ local function wallKick()
     Helpers.stopSound("lcm_player_double_jump")
     Helpers.playSound("lcm_player_double_jump")
     Kerenzikov.awardShinobiXP(wallState.chainCount > 0 and 15.0 or 10.0)
+end
+
+--- Bounce off the wall: reflect the player's entry velocity about the wall
+--- normal (r = v - 2(v·n)n), preserving entry momentum, plus a small upward
+--- arc. Head-on entries reverse straight back; angled entries mirror their
+--- exit angle while keeping the wall-parallel component.
+local function wallBounce()
+    local wn = wallState.wallNormal or Vector4.new(0, 0, 0, 0)
+    local v  = wallState.entryVelocity or Vector4.new(0, 0, 0, 0)
+    local vDotN = v.x * wn.x + v.y * wn.y
+    local rx = (v.x - 2 * vDotN * wn.x) * WALL_BOUNCE_FORCE_MULT
+    local ry = (v.y - 2 * vDotN * wn.y) * WALL_BOUNCE_FORCE_MULT
+    local speed = math.sqrt(rx * rx + ry * ry)
+    -- Parallelism: 0 when head-on into the wall, 1 when running fully parallel.
+    -- The more parallel the entry, the bigger the upward arc bonus (up to max).
+    local vLen = math.sqrt(v.x * v.x + v.y * v.y)
+    local parallelFactor = (vLen > 0.001) and (1.0 - math.abs(vDotN / vLen)) or 0
+    wallState.lastKickWallNormal = wn
+    -- cleanupWallState sets camera.targetTilt = 0; the IDLE lerp smoothly
+    -- unrolls the tilt rather than snapping (resetCameraRoll would snap).
+    cleanupWallState()
+    -- Brief lockout so we don't immediately re-grab a wall (run/climb/ledge)
+    -- on the way off it — set after cleanup so it survives the reset.
+    wallState.bounceLockout = WALL_BOUNCE_LOCKOUT
+    -- cleanupWallState released the climb block; re-engage it so the native
+    -- game climb/vault can't grab a nearby ledge mid-bounce. Held until the
+    -- lockout expires (cleared in updateIdle).
+    setClimbBlock(true)
+    wallState.isClimbBlocked = true
+    local arcMult = WALL_BOUNCE_ARC_MULT + parallelFactor * WALL_BOUNCE_PARALLEL_ARC_BONUS
+    local arcBoost = speed * KICK_ARC_RATIO * arcMult
+    Helpers.queueWallKick(Vector4.new(rx, ry, arcBoost, 0))
+    Helpers.stopSound("lcm_player_double_jump")
+    Helpers.playSound("lcm_player_double_jump")
+    Kerenzikov.awardShinobiXP(5.0)
 end
 
 beginWallJump = function(skipSound)
@@ -591,11 +636,19 @@ local function updateIdle(dt, airborne, dashCancel, LynxPaw)
         wallState.pendingKickImpulse = nil
     end
 
+    -- Tick down the post-bounce lockout (blocks wall re-engagement briefly)
+    if wallState.bounceLockout then
+        wallState.bounceLockout = wallState.bounceLockout - dt
+        if wallState.bounceLockout <= 0 then wallState.bounceLockout = nil end
+    end
+    local bounceLocked = wallState.bounceLockout ~= nil
+
     -- Post-kick chain detection: scan for walls during the impulse arc
     if wallState.chainScanTimer then
         wallState.chainScanTimer = wallState.chainScanTimer + dt
 
         if wallState.chainScanTimer > 0.1 and wallState.chainScanTimer < CHAIN_SCAN_WINDOW
+           and not bounceLocked
            and airborne and (cfg.unlimitedWallChains or wallState.chainCount < cfg.maxWallChains) then
             -- Side walls → wall run
             local side, sideRayDir, sideDist, sideHitPos = WallDetect.detectWall()
@@ -631,7 +684,7 @@ local function updateIdle(dt, airborne, dashCancel, LynxPaw)
     end
 
     -- Clear climb block once when returning to idle
-    if wallState.isClimbBlocked then
+    if wallState.isClimbBlocked and not bounceLocked then
         setClimbBlock(false)
         wallState.isClimbBlocked = false
     end
@@ -668,6 +721,7 @@ local function updateIdle(dt, airborne, dashCancel, LynxPaw)
 
     local vel = wallState.player:GetVelocity()
     if airborne
+       and not bounceLocked
        and (not cfg.requireLynxPaws or LynxPaw.equipped)
        and (not cfg.requireSprint or input.pressingSprint)
        and (dashCancel or vel.z >= 0)
@@ -696,6 +750,7 @@ end
 
 local function updateWallRunning(dt, airborne, dashCancel, LynxPaw)
     Kerenzikov.updateADS()
+    wallState.mountElapsed = (wallState.mountElapsed or 0) + dt
 
     if input.meleeJustPressed and Mantis.checkEquipped() then
         beginMantisGrab()
@@ -705,6 +760,13 @@ local function updateWallRunning(dt, airborne, dashCancel, LynxPaw)
     if Helpers.actionFired(input.hotkeyBound.reverseHang, input.reverseHangJustPressed,
             input.pressingBack and input.jumpJustPressed) and hasEnoughStamina() then
         beginReverseHang()
+        return
+    end
+
+    -- Wall bounce: plain jump within the bounce window rebounds off the wall
+    if input.jumpJustPressed and cfg.wallBounceWindow > 0
+       and (wallState.mountElapsed or 0) <= cfg.wallBounceWindow then
+        wallBounce()
         return
     end
 
@@ -950,6 +1012,8 @@ local function updateWallRunning(dt, airborne, dashCancel, LynxPaw)
 end
 
 local function updateWallClimbing(dt, airborne, dashCancel, LynxPaw)
+    wallState.mountElapsed = (wallState.mountElapsed or 0) + dt
+
     if input.meleeJustPressed and Mantis.checkEquipped() then
         beginMantisGrab()
         return
@@ -958,6 +1022,13 @@ local function updateWallClimbing(dt, airborne, dashCancel, LynxPaw)
     if Helpers.actionFired(input.hotkeyBound.reverseHang, input.reverseHangJustPressed,
             input.pressingBack and input.jumpJustPressed) and hasEnoughStamina() then
         beginReverseHang()
+        return
+    end
+
+    -- Wall bounce: plain jump within the bounce window rebounds off the wall
+    if input.jumpJustPressed and cfg.wallBounceWindow > 0
+       and (wallState.mountElapsed or 0) <= cfg.wallBounceWindow then
+        wallBounce()
         return
     end
 

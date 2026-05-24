@@ -27,6 +27,11 @@ local wallState = {
     wallRunEntryNormal = nil,    -- Vector4 (XY), wall normal at time of entry (for curve check)
     lastKickWallNormal = nil,    -- Vector4 (XY), wall normal from last kick (for same-wall check)
 
+    -- Wall bounce
+    mountElapsed   = 0,          -- seconds since the current wall was mounted (run or climb)
+    entryVelocity  = nil,        -- Vector4 (XY), player velocity captured at mount (for bounce reflection)
+    bounceLockout  = nil,        -- countdown blocking wall re-engagement right after a bounce
+
     -- Wall climb
     isClimbBlocked     = false,  -- quest fact is active blocking game climb
     climbPeakHoldTimer = nil,    -- countdown before transitioning out of climb peak
