@@ -29,7 +29,7 @@ local cfg = {
     maxWallChains      = 2,     -- max wall-to-wall chains per airborne period
     unlimitedHangtime   = false,
     wallKickAimHold    = 0.25,  -- seconds to hold position before kick
-    wallBounceWindow   = 0.5,   -- jump within this window of mount to bounce off the wall (0 = off)
+    wallBounceWindow   = 0.4,   -- jump within this window of mount to bounce off the wall (0 = off)
     safeLandWindow     = 0.40,  -- seconds before landing to buffer crouch
     safeLandAlways     = false, -- always safe land on damaging heights
     safeLandAnyHeight  = false, -- survive even lethal falls (loco 26)

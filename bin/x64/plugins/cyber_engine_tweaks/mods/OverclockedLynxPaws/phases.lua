@@ -27,6 +27,12 @@ local KICK_ARC_RATIO       = 0.15      -- vertical boost as fraction of kick for
 local WALL_BOUNCE_FORCE_MULT = 1.5     -- horizontal exit velocity multiplier for wall bounce
 local WALL_BOUNCE_ARC_MULT   = 5.0     -- base upward-arc multiplier for wall bounce
 local WALL_BOUNCE_PARALLEL_ARC_BONUS = 2.5 -- max extra arc mult when entry was fully parallel to the wall
+local WALL_BOUNCE_MIN_SPEED  = 5.0     -- floor on bounce exit speed (m/s) so slow approaches still pop off
+local WALL_BOUNCE_MAX_SPEED  = 10.0    -- cap on bounce exit speed (m/s) so dash-into-wall doesn't fling
+local WALL_BOUNCE_OUTWARD_SPEED = 3.0  -- below this entry speed, bounce straight out (not sideways)
+-- Wall-slide SFX. Softer mud surface in place of the original loud tile slide.
+-- (Vanilla SoundPlayEvent has no volume control, so quieting = softer event.)
+local WALL_SLIDE_SOUND = "lcm_fs_additional_mud_slide"
 local WALL_BOUNCE_LOCKOUT    = 0.25    -- seconds after a bounce before walls can re-engage
 local AIM_KICK_ARC_RATIO   = 0.75      -- vertical boost as fraction of kick force (aim kick)
 local RHANG_SCOOP_DEG      = 12        -- pitch scoop amplitude during reverse hang (degrees)
@@ -156,7 +162,7 @@ local function cleanupWallState()
     Helpers.endWallYSensitivity()
     -- Soft camera reset: let IDLE lerp smoothly unroll
     camera.targetTilt = 0
-    Helpers.stopSound("lcm_fs_additional_tiles_slide")
+    Helpers.stopSound(WALL_SLIDE_SOUND)
     setClimbBlock(false)
     wallState.climbPeakHoldTimer = nil
     wallState.wallLostTimer = nil
@@ -179,7 +185,7 @@ local function transitionToSlide()
     wallState.targetZ = wallState.player:GetWorldPosition().z
     wallState.phase = "WALL_SLIDING"
     wallState.timer = wallState.slideBudget or cfg.wallSlideDuration
-    Helpers.playSound("lcm_fs_additional_tiles_slide")
+    Helpers.playSound(WALL_SLIDE_SOUND)
 end
 
 local function enterWallRun(side, rayDir, wallNormal, isChain)
@@ -428,12 +434,32 @@ local function wallBounce()
     local wn = wallState.wallNormal or Vector4.new(0, 0, 0, 0)
     local v  = wallState.entryVelocity or Vector4.new(0, 0, 0, 0)
     local vDotN = v.x * wn.x + v.y * wn.y
-    local rx = (v.x - 2 * vDotN * wn.x) * WALL_BOUNCE_FORCE_MULT
-    local ry = (v.y - 2 * vDotN * wn.y) * WALL_BOUNCE_FORCE_MULT
+    local vLen = math.sqrt(v.x * v.x + v.y * v.y)
+    local rx, ry
+    if vLen < WALL_BOUNCE_OUTWARD_SPEED then
+        -- Standing / barely moving against the wall: the reflection would be
+        -- dominated by tangential drift and fling us sideways. Push straight
+        -- out along the wall normal instead.
+        rx, ry = wn.x, wn.y
+    else
+        rx = (v.x - 2 * vDotN * wn.x) * WALL_BOUNCE_FORCE_MULT
+        ry = (v.y - 2 * vDotN * wn.y) * WALL_BOUNCE_FORCE_MULT
+    end
     local speed = math.sqrt(rx * rx + ry * ry)
+    if speed < 0.001 then
+        rx, ry, speed = wn.x, wn.y, 1.0
+    end
+    -- Clamp exit speed to [min, max]: slow approaches still pop off, and a
+    -- dash-into-wall bounce doesn't fling (also bounds the arc, which scales
+    -- off speed below).
+    local clampedSpeed = math.max(WALL_BOUNCE_MIN_SPEED, math.min(WALL_BOUNCE_MAX_SPEED, speed))
+    if clampedSpeed ~= speed then
+        local scale = clampedSpeed / speed
+        rx, ry = rx * scale, ry * scale
+        speed = clampedSpeed
+    end
     -- Parallelism: 0 when head-on into the wall, 1 when running fully parallel.
     -- The more parallel the entry, the bigger the upward arc bonus (up to max).
-    local vLen = math.sqrt(v.x * v.x + v.y * v.y)
     local parallelFactor = (vLen > 0.001) and (1.0 - math.abs(vDotN / vLen)) or 0
     wallState.lastKickWallNormal = wn
     -- cleanupWallState sets camera.targetTilt = 0; the IDLE lerp smoothly
@@ -1189,19 +1215,19 @@ end
 
 local function updateWallSliding(dt, airborne, dashCancel, LynxPaw)
     if input.meleeJustPressed and Mantis.checkEquipped() then
-        Helpers.stopSound("lcm_fs_additional_tiles_slide")
+        Helpers.stopSound(WALL_SLIDE_SOUND)
         beginMantisGrab()
         return
     end
 
     if input.pressingBack and input.jumpJustPressed and hasEnoughStamina() then
-        Helpers.stopSound("lcm_fs_additional_tiles_slide")
+        Helpers.stopSound(WALL_SLIDE_SOUND)
         beginReverseHang()
         return
     end
 
     if input.jumpJustPressed and hasEnoughStamina() then
-        Helpers.stopSound("lcm_fs_additional_tiles_slide")
+        Helpers.stopSound(WALL_SLIDE_SOUND)
         beginWallJump()
         return
     end
@@ -1209,7 +1235,7 @@ local function updateWallSliding(dt, airborne, dashCancel, LynxPaw)
     local pos = wallState.player:GetWorldPosition()
 
     local function slideExit()
-        Helpers.stopSound("lcm_fs_additional_tiles_slide")
+        Helpers.stopSound(WALL_SLIDE_SOUND)
         exitWallRun()
     end
 

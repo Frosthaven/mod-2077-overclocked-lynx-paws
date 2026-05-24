@@ -261,7 +261,7 @@ public class WallRunSettings extends ScriptableSystem {
     @runtimeProperty("ModSettings.min", "0.0")
     @runtimeProperty("ModSettings.max", "5.0")
     @runtimeProperty("ModSettings.dependency", "enabled")
-    public let wallBounceWindow: Float = 0.5;
+    public let wallBounceWindow: Float = 0.4;
 
     // ── Safe Landing Roll ─────────────────────────────────────────────
 
