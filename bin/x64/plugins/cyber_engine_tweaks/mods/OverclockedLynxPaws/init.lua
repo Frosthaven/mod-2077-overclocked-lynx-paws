@@ -80,11 +80,14 @@ function OverclockedLynxPaws:New()
                 end
                 input.pressingBack = input.keyboardBack or input.padBack
             end
+            -- KBM hold-to-sprint fallback. The authoritative sprint state (incl.
+            -- controller Toggle Sprint, which only taps here) comes from the
+            -- redscript wr_sprint_held fact, combined in onUpdate below.
             if name == "Sprint" or name == "ToggleSprint" then
                 if atype == "BUTTON_PRESSED" then
-                    input.pressingSprint = true
+                    input.sprintHeldKBM = true
                 elseif atype == "BUTTON_RELEASED" then
-                    input.pressingSprint = false
+                    input.sprintHeldKBM = false
                 end
             end
             local isMeleeAction = name == "MeleeAttack" or name == "MeleeLightAttack"
@@ -189,6 +192,18 @@ function OverclockedLynxPaws:New()
 
     registerForEvent("onUpdate", function(delta)
         if self.loaded and self._Phases then
+            -- Effective sprint-held = KBM hold OR the redscript-bridged real sprint
+            -- intent (covers controller Toggle Sprint, which the OnAction handler
+            -- can't see as "held"). Must run before Phases.update consumes it.
+            local sprintHeld = self._input.sprintHeldKBM
+            if not sprintHeld then
+                local qs = Game.GetQuestsSystem()
+                if qs and qs:GetFact(CName.new("wr_sprint_held")) > 0 then
+                    sprintHeld = true
+                end
+            end
+            self._input.pressingSprint = sprintHeld
+
             self._Phases.update(delta, self._config.syncSettings, self._LynxPaw)
             self._input.jumpJustPressed = false
             self._input.crouchJustPressed = false

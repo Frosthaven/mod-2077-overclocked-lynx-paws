@@ -63,14 +63,27 @@ protected func EnterCondition(stateContext: ref<StateContext>, scriptInterface: 
 // ── Force uncrouch: clear CrouchToggled when signalled by Lua via wr_uncrouch fact ──
 // Hooked on CrouchEvents.OnUpdate so it runs every frame while crouched.
 
+// Bridge the player's real sprint intent to Lua via the wr_sprint_held fact.
+// CET's OnAction handler only sees a momentary press for controller "Toggle
+// Sprint", so the Lua pressingSprint flag never stays held on a gamepad and the
+// hold-sprint standstill wall climb can't trigger. Reading the state machine's
+// SprintToggled condition (plus the raw Sprint/ToggleSprint action values) is
+// device- and mode-agnostic and works while standing still. Written every frame
+// from the stand/crouch/air states — the states the standstill climb flows
+// through (stand/crouch -> jump -> air, where the climb is qualified).
 @wrapMethod(CrouchEvents)
 protected func OnUpdate(timeDelta: Float, stateContext: ref<StateContext>, scriptInterface: ref<StateGameScriptInterface>) -> Void {
     let player = scriptInterface.executionOwner as PlayerPuppet;
     if IsDefined(player) {
-        if GameInstance.GetQuestsSystem(player.GetGame()).GetFact(n"wr_uncrouch") > 0 {
+        let qs = GameInstance.GetQuestsSystem(player.GetGame());
+        if qs.GetFact(n"wr_uncrouch") > 0 {
             stateContext.SetConditionBoolParameter(n"CrouchToggled", false, true);
-            GameInstance.GetQuestsSystem(player.GetGame()).SetFact(n"wr_uncrouch", 0);
+            qs.SetFact(n"wr_uncrouch", 0);
         }
+        let sprintHeld = stateContext.GetConditionBool(n"SprintToggled")
+            || scriptInterface.GetActionValue(n"Sprint") > 0.00
+            || scriptInterface.GetActionValue(n"ToggleSprint") > 0.00;
+        qs.SetFact(n"wr_sprint_held", sprintHeld ? 1 : 0);
     }
     wrappedMethod(timeDelta, stateContext, scriptInterface);
 }
@@ -88,6 +101,10 @@ protected func OnUpdate(timeDelta: Float, stateContext: ref<StateContext>, scrip
             stateContext.SetConditionBoolParameter(n"CrouchToggled", false, true);
             qs.SetFact(n"wr_uncrouch", 0);
         }
+        let sprintHeld = stateContext.GetConditionBool(n"SprintToggled")
+            || scriptInterface.GetActionValue(n"Sprint") > 0.00
+            || scriptInterface.GetActionValue(n"ToggleSprint") > 0.00;
+        qs.SetFact(n"wr_sprint_held", sprintHeld ? 1 : 0);
     }
     wrappedMethod(timeDelta, stateContext, scriptInterface);
 }
@@ -141,6 +158,13 @@ protected func OnUpdate(timeDelta: Float, stateContext: ref<StateContext>, scrip
         stateContext.SetPermanentIntParameter(n"currentNumberOfJumps", 0, true);
         qs.SetFact(n"wr_reset_jumps", 0);
     }
+
+    // Bridge sprint intent while airborne — this is where the standstill wall
+    // climb is qualified (player jumps at the wall, then the Lua loop checks it).
+    let sprintHeld = stateContext.GetConditionBool(n"SprintToggled")
+        || scriptInterface.GetActionValue(n"Sprint") > 0.00
+        || scriptInterface.GetActionValue(n"ToggleSprint") > 0.00;
+    qs.SetFact(n"wr_sprint_held", sprintHeld ? 1 : 0);
 
     if qs.GetFact(n"wr_safe_land") <= 0 {
         return;

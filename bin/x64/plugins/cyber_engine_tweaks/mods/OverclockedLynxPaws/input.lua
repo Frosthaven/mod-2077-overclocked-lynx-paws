@@ -6,7 +6,8 @@ local input = {
     pressingBack       = false,
     keyboardBack       = false,
     padBack            = false,
-    pressingSprint     = false,
+    pressingSprint     = false,  -- effective sprint-held state (computed each frame from the KBM flag + redscript fact)
+    sprintHeldKBM      = false,  -- sprint key tracked from OnAction (KBM hold); fallback if the redscript bridge is unavailable
     meleeJustPressed   = false,
     weaponSwitchJustPressed = false,
     -- Custom CET hotkey flags (set by hotkey callbacks, reset each frame)
