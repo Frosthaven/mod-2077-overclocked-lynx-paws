@@ -224,6 +224,10 @@ end
 local function exitWallRun()
     wallState.lastKickWallNormal = wallState.wallNormal
     cleanupWallState()
+    -- A run/slide that ended on its own must not auto-convert into a climb on
+    -- re-engagement — the player should slide/fall. Cleared by a deliberate wall
+    -- jump (beginWallJump) and on landing, so intentional chains still climb.
+    wallState.suppressAutoClimb = true
     -- Camera unroll handled by IDLE lerp
     Helpers.playSound("lcm_wallrun_out")
 end
@@ -300,6 +304,13 @@ local function tryChainWall(kickDir)
     end
     if isSameWall(wallN) then
         Helpers.logDebug("[Chain] BLOCKED: same wall")
+        return false
+    end
+    -- After a run/slide that ended on its own, don't auto-climb the next wall —
+    -- the player should slide/fall. Deliberate jump-chains clear this flag in
+    -- beginWallJump, so they still climb. (Returns before any state mutation.)
+    if action == "climb" and wallState.suppressAutoClimb then
+        Helpers.logDebug("[Chain] BLOCKED: auto-climb suppressed after run exit")
         return false
     end
 
@@ -485,6 +496,9 @@ end
 beginWallJump = function(skipSound)
     drainStamina(STAMINA_WALL_KICK)
     wallState.suppressStaminaRegen = cfg.drainStamina
+    -- Deliberate jump: re-enable climb so the player can intentionally chain
+    -- into a wall climb off this kick.
+    wallState.suppressAutoClimb = false
     Kerenzikov.pause()
     wallState.phaseTimer       = 0
     wallState.aimDuration    = cfg.wallKickAimHold
@@ -758,6 +772,9 @@ local function updateIdle(dt, airborne, dashCancel, LynxPaw)
             Helpers.logDebug("[IDLE] rejected: same wall")
         elseif not hasEnoughStamina() then
             Helpers.logDebug("[IDLE] rejected: not enough stamina")
+        elseif action == "climb" and wallState.suppressAutoClimb then
+            -- A run just ended on its own: slide/fall, don't auto-grab a climb.
+            Helpers.logDebug("[IDLE] rejected: auto-climb suppressed after run exit")
         elseif action == "climb" then
             Helpers.logDebug(string.format("[IDLE] => enterWallClimb deg=%.1f", deg))
             wallState.wallTransitionUsed = false
@@ -951,7 +968,14 @@ local function updateWallRunning(dt, airborne, dashCancel, LynxPaw)
         local hitGround, groundPos, groundDist = Helpers.raycast(feetOrigin, downDir, 0.5)
         if hitGround and groundDist < 0.3 then
             vertSpeed = 0
-            wallState.targetZ = math.max(wallState.targetZ, groundPos.z + 0.05)
+            -- Clamp up to the ground, but NEVER above the rise cap. Without this
+            -- bound, a collider that tracks the player (e.g. an invisible entity
+            -- another mod — Idle Anywhere — spawns at the player's feet) reads as
+            -- rising "ground": the clamp lifts targetZ, the teleport lifts the
+            -- player, the follower rises with them, and the loop launches them up
+            -- the wall during the run's descent half. Capping at entryZ+0.75
+            -- (the same ceiling the rise uses) breaks the feedback loop.
+            wallState.targetZ = math.max(wallState.targetZ, math.min(groundPos.z + 0.05, wallState.entryZ + 0.75))
         end
     end
 
@@ -1261,11 +1285,14 @@ local function updateWallSliding(dt, airborne, dashCancel, LynxPaw)
     local slideSpeed = cfg.riseSpeed * 0.5
     wallState.targetZ = wallState.targetZ - slideSpeed * dt
 
-    -- Ground proximity
+    -- Ground proximity. Only treat the hit as real ground if it's at/below where
+    -- this wall action started — a collider that tracks the player's feet (e.g.
+    -- Idle Anywhere's entity) rides up the wall with us and would otherwise end
+    -- the slide on its first frame, dropping us off instead of sliding down.
     local feetOrigin = Vector4.new(pos.x, pos.y, wallState.targetZ + 0.1, 0)
     local downDir = Vector4.new(0, 0, -1, 0)
     local hitGround, groundPos, groundDist = Helpers.raycast(feetOrigin, downDir, 0.5)
-    if hitGround and groundDist < 0.4 then
+    if hitGround and groundDist < 0.4 and groundPos.z <= wallState.entryZ + 0.2 then
         slideExit()
         return
     end
@@ -1977,6 +2004,7 @@ function Phases.update(dt, syncSettings, LynxPaw)
         wallState.wallRunUsedThisJump = false
         wallState.crouchBufferUsed = false
         wallState.wallClimbUsedThisJump = false
+        wallState.suppressAutoClimb = false
         wallState.wallTransitionUsed = false
         wallState.lastKickWallNormal = nil
         wallState.chainCount = 0

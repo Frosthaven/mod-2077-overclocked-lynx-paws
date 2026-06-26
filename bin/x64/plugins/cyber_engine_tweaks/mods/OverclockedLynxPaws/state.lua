@@ -10,6 +10,7 @@ local wallState = {
     cooldown     = 0,            -- seconds since last wall-run exit
     wallRunUsedThisJump = false,        -- only one wall run per airborne period
     wallClimbUsedThisJump = false,       -- only one wall climb per airborne period
+    suppressAutoClimb = false,           -- block auto-climb re-engagement after a run/slide ends on its own; cleared by a deliberate wall jump + on landing
     chainCount   = 0,            -- wall-to-wall chains used this airborne period
     slideBudget  = 0,            -- remaining wall slide time this airborne period
     -- Jump / exit push fields
