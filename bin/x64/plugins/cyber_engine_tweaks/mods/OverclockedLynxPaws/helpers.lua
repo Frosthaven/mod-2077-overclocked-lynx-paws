@@ -389,41 +389,26 @@ function Helpers.applyCameraRoll(roll)
     end
 end
 
-local cachedFPP_MouseY, cachedFPP_PadY
-
---- Cache vanilla Y sensitivity and write scaled values for wall phases.
---- Lets the engine drive both camera AND weapon pitch naturally while still
---- honoring our slider — the engine's input multiplier becomes vanilla*slider.
---- Idempotent: re-entering when already active is a no-op.
-function Helpers.beginWallYSensitivity()
-    if cachedFPP_MouseY ~= nil then return end
-    local ss = Game.GetSettingsSystem()
-    local vMouseY = ss:GetVar("/controls/fppcameramouse", "FPP_MouseY")
-    local vPadY   = ss:GetVar("/controls/fppcamerapad",  "FPP_PadY")
-    if vMouseY then
-        cachedFPP_MouseY = vMouseY:GetValue()
-        pcall(function() vMouseY:SetValue(cachedFPP_MouseY * cfg.lookSensMouseY) end)
-    end
-    if vPadY then
-        cachedFPP_PadY = vPadY:GetValue()
-        pcall(function() vPadY:SetValue(cachedFPP_PadY * (cfg.lookSensControllerY / 15.0)) end)
-    end
-end
-
---- Restore cached vanilla Y sensitivity. Safe to call when not active.
-function Helpers.endWallYSensitivity()
-    if cachedFPP_MouseY == nil and cachedFPP_PadY == nil then return end
-    local ss = Game.GetSettingsSystem()
-    if cachedFPP_MouseY ~= nil then
-        local vMouseY = ss:GetVar("/controls/fppcameramouse", "FPP_MouseY")
-        if vMouseY then pcall(function() vMouseY:SetValue(cachedFPP_MouseY) end) end
-        cachedFPP_MouseY = nil
-    end
-    if cachedFPP_PadY ~= nil then
-        local vPadY = ss:GetVar("/controls/fppcamerapad", "FPP_PadY")
-        if vPadY then pcall(function() vPadY:SetValue(cachedFPP_PadY) end) end
-        cachedFPP_PadY = nil
-    end
+--- Scale look (pitch) sensitivity during wall phases WITHOUT touching the player's
+--- FPP_MouseY / FPP_PadY settings. The engine applies the player's own sensitivity as
+--- the base; this layers our multiplier on top via the camera's native sensitivityMultY
+--- (carried by SetCameraParamsWithOverridesEvent), so camera AND weapon aim stay coupled.
+--- paramsName="" + permissive limits override only the sensitivity, not the camera's
+--- params or angle range. multY = 1.0 restores normal. Cheap enough to re-assert every
+--- wall frame so the engine's own per-state camera-param updates can't stomp it.
+--- @param multY number Pitch sensitivity multiplier (1.0 = unchanged).
+function Helpers.applyWallCamSens(multY)
+    pcall(function()
+        local evt = SetCameraParamsWithOverridesEvent.new()
+        evt.paramsName = CName.new("")
+        evt.sensitivityMultX = 1.0   -- yaw is driven by the mod directly; leave engine yaw unscaled
+        evt.sensitivityMultY = multY
+        evt.yawMaxLeft  = 180.0
+        evt.yawMaxRight = -180.0
+        evt.pitchMax = 89.0
+        evt.pitchMin = -89.0
+        wallState.player:QueueEvent(evt)
+    end)
 end
 
 --- Cast a ray at multiple body heights, returning the first hit.

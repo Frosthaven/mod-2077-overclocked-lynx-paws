@@ -119,6 +119,7 @@ local camera = {
     pendingMouseDeltaY   = 0,    -- raw mouse Y delta this frame (consumed each update)
     rightStickX        = 0,    -- controller right stick X axis (-1 to 1, continuous)
     rightStickY        = 0,    -- controller right stick Y axis (-1 to 1, continuous)
+    lastLookGamepad    = false, -- true if the most recent look input came from the right stick (vs mouse)
 }
 
 local ledgeMount = {

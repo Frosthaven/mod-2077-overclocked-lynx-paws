@@ -115,13 +115,19 @@ function OverclockedLynxPaws:New()
             end
             -- Capture aim input for manual yaw/pitch tracking during wall phases
             if name == "CameraMouseX" then
-                camera.pendingMouseDeltaX = camera.pendingMouseDeltaX + action:GetValue(action)
+                local v = action:GetValue(action)
+                camera.pendingMouseDeltaX = camera.pendingMouseDeltaX + v
+                if v ~= 0 then camera.lastLookGamepad = false end
             elseif name == "CameraMouseY" then
-                camera.pendingMouseDeltaY = camera.pendingMouseDeltaY + action:GetValue(action)
+                local v = action:GetValue(action)
+                camera.pendingMouseDeltaY = camera.pendingMouseDeltaY + v
+                if v ~= 0 then camera.lastLookGamepad = false end
             elseif name == "right_stick_x" then
                 camera.rightStickX = action:GetValue(action)
+                if math.abs(camera.rightStickX) > 0.1 then camera.lastLookGamepad = true end
             elseif name == "right_stick_y" then
                 camera.rightStickY = action:GetValue(action)
+                if math.abs(camera.rightStickY) > 0.1 then camera.lastLookGamepad = true end
             end
             -- Controller left stick Y: treat pull-back as pressingBack
             if name == "left_stick_y" then
@@ -179,7 +185,10 @@ function OverclockedLynxPaws:New()
                 if camComp then camComp:SetLocalPosition(Vector4.new(0, 0, 0, 0)) end
             end)
         end
-        if self._Helpers then self._Helpers.endWallYSensitivity() end
+        if self._Helpers and self._wallState and self._wallState.camSensActive then
+            self._Helpers.applyWallCamSens(1.0)
+            self._wallState.camSensActive = false
+        end
         -- Clear mod facts so a CET reload mid-flight can't leave the Redscript
         -- hooks reading stale state (e.g. wr_safe_land = 1 forever).
         local ok, SafeLanding = pcall(require, "safelanding")

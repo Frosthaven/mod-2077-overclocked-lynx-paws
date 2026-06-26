@@ -160,7 +160,6 @@ local function cleanupWallState()
     wallState.mantisGrabThrust = nil
     end
     Kerenzikov.deactivate()
-    Helpers.endWallYSensitivity()
     -- Soft camera reset: let IDLE lerp smoothly unroll
     camera.targetTilt = 0
     Helpers.stopSound(WALL_SLIDE_SOUND)
@@ -211,7 +210,6 @@ local function enterWallRun(side, rayDir, wallNormal, isChain)
     camera.trackedYaw   = wallState.player:GetWorldYaw()
     camera.pendingMouseDeltaX = 0
     camera.pendingMouseDeltaY = 0
-    Helpers.beginWallYSensitivity()
     setClimbBlock(true)
     wallState.isClimbBlocked = true
     wallState.wallLostTimer = nil
@@ -420,7 +418,6 @@ enterWallClimb = function(wallNormal, isChain)
     camera.trackedYaw   = wallState.player:GetWorldYaw()
     camera.pendingMouseDeltaX = 0
     camera.pendingMouseDeltaY = 0
-    Helpers.beginWallYSensitivity()
 
     if not isChain then Helpers.playSound("lcm_wallrun_in") end
     Kerenzikov.awardShinobiXP(isChain and 7.0 or 5.0)
@@ -2082,6 +2079,22 @@ function Phases.update(dt, syncSettings, LynxPaw)
     -- Dispatch to current phase handler
     local handler = phaseHandlers[wallState.phase]
     if handler then handler(dt, airborne, dashCancel, LynxPaw) end
+
+    -- Pitch sensitivity: scale it down while on a wall by layering our multiplier on
+    -- top of the player's own sensitivity (never writes their setting), re-asserted each
+    -- frame so the engine's per-state camera-param updates can't stomp it; restored once
+    -- we return to IDLE. This runs after dispatch, so a re-engagement that set a wall
+    -- phase this frame keeps the override and only a genuine IDLE restores it.
+    if wallState.phase ~= "IDLE" then
+        -- Use the multiplier for whichever device you're looking with. Controller Y is
+        -- centered at 15 (= 1.0x); mouse Y is already a direct multiplier. Both 1.0 by default.
+        local multY = camera.lastLookGamepad and (cfg.lookSensControllerY / 15.0) or cfg.lookSensMouseY
+        Helpers.applyWallCamSens(multY)
+        wallState.camSensActive = true
+    elseif wallState.camSensActive then
+        Helpers.applyWallCamSens(1.0)
+        wallState.camSensActive = false
+    end
 
     -- Debug text (generated in debug.lua to keep phases.lua focused on logic)
     Debug.buildText(LynxPaw, airborne)
