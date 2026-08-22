@@ -6,8 +6,9 @@ local input = {
     pressingBack       = false,
     keyboardBack       = false,
     padBack            = false,
-    pressingSprint     = false,  -- effective sprint-held state (computed each frame from the KBM flag + redscript fact)
-    sprintHeldKBM      = false,  -- sprint key tracked from OnAction (KBM hold); fallback if the redscript bridge is unavailable
+    pressingSprint     = false,  -- sprint INTENT: KBM latch OR wr_sprint_held fact (key down or PSM SprintToggled); used by standstill climb + safe-roll sprint resume
+    sprintKeyHeld      = false,  -- sprint key PHYSICALLY down right now (wr_sprint_key fact only); used by the requireSprint gate
+    sprintHeldKBM      = false,  -- KBM hold latch from OnAction; fallback for pressingSprint only when the redscript bridge is absent
     meleeJustPressed   = false,
     weaponSwitchJustPressed = false,
     -- Custom CET hotkey flags (set by hotkey callbacks, reset each frame)

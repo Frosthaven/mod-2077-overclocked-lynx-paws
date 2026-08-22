@@ -4,6 +4,7 @@ local cfg = {
     cetLogsEnabled    = false,
     requireLynxPaws   = true,   -- gate wall running on Lynx Paw cyberware
     requireLynxPawsForSafeLanding = true, -- gate safe-landing roll on Lynx Paw cyberware
+    requireLynxPawsForMantis = true, -- gate mantis hang on Lynx Paw cyberware; off = mantis-hook walls with Mantis Blades alone
     wallRunSpeed      = 7.0, -- min wall run speed (m/s); entry speed decays toward this
     wallClimbSpeed    = 6.0, -- vertical speed during wall climb (m/s)
     unlimitedWallRun    = false,
@@ -49,6 +50,7 @@ local cfg = {
 -- All Redscript-exposed fields to sync from WallRunSettings
 local syncFields = {
     "enabled", "debugEnabled", "cetLogsEnabled", "requireLynxPaws", "requireLynxPawsForSafeLanding",
+    "requireLynxPawsForMantis",
     "wallRunDuration", "wallClimbDuration", "wallSlideDuration",
     "maxWallChains", "chainBonusDuration",
     "triggerKerenzikov", "wallKickAimHold", "wallKickForce", "wallBounceWindow",

@@ -30,6 +30,14 @@ public class WallRunSettings extends ScriptableSystem {
     @runtimeProperty("ModSettings.mod", "Overclocked Lynx Paws")
     @runtimeProperty("ModSettings.category", "General")
     @runtimeProperty("ModSettings.category.order", "1")
+    @runtimeProperty("ModSettings.displayName", "Mantis Hang Requires Lynx Paws")
+    @runtimeProperty("ModSettings.description", "When off, Mantis Blades alone let you hook/hang a wall from the air, wall-kick off it, and chain to the next wall - no Lynx Paws needed. Free wall running and climbing still require Lynx Paws.")
+    @runtimeProperty("ModSettings.dependency", "enabled")
+    public let requireLynxPawsForMantis: Bool = true;
+
+    @runtimeProperty("ModSettings.mod", "Overclocked Lynx Paws")
+    @runtimeProperty("ModSettings.category", "General")
+    @runtimeProperty("ModSettings.category.order", "1")
     @runtimeProperty("ModSettings.displayName", "Enable Kerenzikov Support")
     @runtimeProperty("ModSettings.description", "Activate Kerenzikov (if equipped) when aiming down sights during wall run")
     @runtimeProperty("ModSettings.dependency", "enabled")
@@ -49,7 +57,7 @@ public class WallRunSettings extends ScriptableSystem {
     @runtimeProperty("ModSettings.category", "Controls")
     @runtimeProperty("ModSettings.category.order", "2")
     @runtimeProperty("ModSettings.displayName", "Parkour Requires Sprint Key")
-    @runtimeProperty("ModSettings.description", "Wall run and climb require holding the sprint key")
+    @runtimeProperty("ModSettings.description", "Wall run and climb only trigger while the sprint key (or stick click) is physically held. Toggle-sprint state alone does not count.")
     @runtimeProperty("ModSettings.dependency", "enabled")
     public let requireSprint: Bool = false;
 

@@ -4,6 +4,7 @@ local wallState = state.wallState
 local camera = state.camera
 local Helpers = require("helpers")
 local WallDetect = require("walldetect")
+local ShiftCompat = require("shiftcompat")
 
 local Debug = {}
 
@@ -60,6 +61,8 @@ function Debug.buildText(LynxPaw, airborne)
     if wallState.phase == "WALL_CLIMBING" and wallState.climbEntryDeg then
         wallState.debugText = wallState.debugText .. string.format(" | ClimbDeg: %.1f", wallState.climbEntryDeg)
     end
+
+    wallState.debugText = wallState.debugText .. ShiftCompat.debugTag()
 
     if wallState.phase == "IDLE" and airborne and wallState.airborneTime > 0.15
        and vel.z >= 0 and Vector4.Length2D(vel) > cfg.minHorizSpeed then

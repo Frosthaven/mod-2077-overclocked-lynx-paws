@@ -32,6 +32,7 @@ function OverclockedLynxPaws:New()
         local Phases = require("phases")
         local Debug = require("debug")
         local Mantis = require("mantis")
+        local ShiftCompat = require("shiftcompat")
 
         Helpers.init()
 
@@ -49,6 +50,9 @@ function OverclockedLynxPaws:New()
 
         Observe('QuestTrackerGameController', 'OnUninitialize', function()
             if Game.GetPlayer() == nil then
+                -- Player is gone (save load / main menu): give Shift its camera
+                -- back now rather than holding it across the transition.
+                if self._ShiftCompat then pcall(self._ShiftCompat.release, true) end
                 wallState.player  = nil
                 self.loaded = false
             end
@@ -80,9 +84,10 @@ function OverclockedLynxPaws:New()
                 end
                 input.pressingBack = input.keyboardBack or input.padBack
             end
-            -- KBM hold-to-sprint fallback. The authoritative sprint state (incl.
-            -- controller Toggle Sprint, which only taps here) comes from the
-            -- redscript wr_sprint_held fact, combined in onUpdate below.
+            -- KBM hold-to-sprint latch. Feeds only the sprint INTENT flag
+            -- (input.pressingSprint) as a fallback; the authoritative signals
+            -- (incl. controller Toggle Sprint, which only taps here) are the
+            -- redscript wr_sprint_key / wr_sprint_held facts, read in onUpdate.
             if name == "Sprint" or name == "ToggleSprint" then
                 if atype == "BUTTON_PRESSED" then
                     input.sprintHeldKBM = true
@@ -170,20 +175,23 @@ function OverclockedLynxPaws:New()
         self._input = input
         self._camera = camera
         self._wallState = wallState
+        self._ShiftCompat = ShiftCompat
     end)
 
     registerForEvent("onShutdown", function()
         if self._LynxPaw then self._LynxPaw.cleanupCrouchSpeed() end
-        if self._wallState and self._wallState.player and self._wallState.phase ~= "IDLE" then
-            if self._Kerenzikov then self._Kerenzikov.deactivate() end
-            if self._Helpers then self._Helpers.applyCameraRoll(0) end
-        end
-        -- Restore camera offset in case shutdown lands during a safe roll
+        local ok, SafeLanding = pcall(require, "safelanding")
         if self._wallState and self._wallState.player then
-            pcall(function()
-                local camComp = self._wallState.player:GetFPPCameraComponent()
-                if camComp then camComp:SetLocalPosition(Vector4.new(0, 0, 0, 0)) end
-            end)
+            if self._Kerenzikov and self._wallState.phase ~= "IDLE" then
+                self._Kerenzikov.deactivate()
+            end
+            -- Unwind a mid-flight safe roll (camera drop / spin, hidden mesh,
+            -- ForceCrouch), then hand the camera back fully: identity
+            -- orientation + zero offset, whatever phase we were in.
+            if ok and SafeLanding and SafeLanding.abortRoll then
+                pcall(SafeLanding.abortRoll, "shutdown")
+            end
+            if self._Helpers then self._Helpers.resetCameraTransform() end
         end
         if self._Helpers and self._wallState and self._wallState.camSensActive then
             self._Helpers.applyWallCamSens(1.0)
@@ -191,29 +199,48 @@ function OverclockedLynxPaws:New()
         end
         -- Clear mod facts so a CET reload mid-flight can't leave the Redscript
         -- hooks reading stale state (e.g. wr_safe_land = 1 forever).
-        local ok, SafeLanding = pcall(require, "safelanding")
         if ok and SafeLanding and SafeLanding.clearAllFacts then
             SafeLanding.clearAllFacts()
         end
+        if self._input then
+            self._input.sprintHeldKBM  = false
+            self._input.sprintKeyHeld  = false
+            self._input.pressingSprint = false
+        end
+        -- Give Shift its camera back. Our onShutdown runs before Shift's own
+        -- shutdown save (CET fires mods alphabetically), so the re-enable lands
+        -- in its settings file.
+        if self._ShiftCompat then pcall(self._ShiftCompat.release, true) end
         if self._wallState then self._wallState.player = nil end
         self.loaded = false
     end)
 
     registerForEvent("onUpdate", function(delta)
         if self.loaded and self._Phases then
-            -- Effective sprint-held = KBM hold OR the redscript-bridged real sprint
-            -- intent (covers controller Toggle Sprint, which the OnAction handler
-            -- can't see as "held"). Must run before Phases.update consumes it.
-            local sprintHeld = self._input.sprintHeldKBM
-            if not sprintHeld then
-                local qs = Game.GetQuestsSystem()
-                if qs and qs:GetFact(CName.new("wr_sprint_held")) > 0 then
-                    sprintHeld = true
-                end
+            -- Sprint bridge (must run before Phases.update consumes it):
+            --   sprintKeyHeld  = the sprint key / stick click is physically down
+            --                    right now (wr_sprint_key, fact only). Feeds the
+            --                    requireSprint gate. No KBM latch here: requireSprint
+            --                    is only reachable via Mod Settings, so hooks.reds is
+            --                    live and the fact is authoritative; OR-ing the latch
+            --                    would let a missed BUTTON_RELEASED hold the gate open.
+            --   pressingSprint = sprint intent (key down OR the PSM's latched
+            --                    SprintToggled, i.e. toggle-sprint / controller stick
+            --                    click), KBM latch as fallback. Feeds the standstill
+            --                    climb and the safe-roll sprint resume.
+            local keyFact, heldFact = false, false
+            local qs = Game.GetQuestsSystem()
+            if qs then
+                keyFact  = qs:GetFact(CName.new("wr_sprint_key")) > 0
+                heldFact = qs:GetFact(CName.new("wr_sprint_held")) > 0
             end
-            self._input.pressingSprint = sprintHeld
+            self._input.sprintKeyHeld  = keyFact
+            self._input.pressingSprint = self._input.sprintHeldKBM or heldFact
 
-            self._Phases.update(delta, self._config.syncSettings, self._LynxPaw)
+            -- pcall so a Lua error inside a phase handler can't starve the
+            -- Shift release below (Shift would otherwise stay frozen all session).
+            local okUpd, err = pcall(self._Phases.update, delta, self._config.syncSettings, self._LynxPaw)
+            if not okUpd then print("[OLP] Phases.update error: " .. tostring(err)) end
             self._input.jumpJustPressed = false
             self._input.crouchJustPressed = false
             self._input.backJustPressed = false
@@ -226,6 +253,10 @@ function OverclockedLynxPaws:New()
             self._camera.pendingMouseDeltaY = 0
         end
 
+        -- Shift camera hand-off. Runs even before Setup (main menu) so a Shift
+        -- left disabled by a crash mid-window is re-enabled as soon as its API
+        -- is visible. No-op when Shift is not installed.
+        if self._ShiftCompat then self._ShiftCompat.update(delta) end
     end)
 
     registerForEvent("onDraw", function()
@@ -249,6 +280,9 @@ function OverclockedLynxPaws:Setup()
     -- before any airborne frame can hit the engine.
     local SafeLanding = require("safelanding")
     SafeLanding.clearAllFacts()
+    -- A roll abandoned at main-menu time (player detached mid-roll) must not
+    -- resume on the freshly loaded player.
+    SafeLanding.resetRollState()
 
     local config = require("config")
     config.syncSettings()
@@ -267,6 +301,11 @@ function OverclockedLynxPaws:Setup()
         input.hotkeyBound.dismount    = IsBound("OLP_DismountWall")
         input.hotkeyBound.safeRoll    = IsBound("OLP_SafeLandingRoll")
     end)
+    -- Never start a session with a stale sprint latch (a BUTTON_RELEASED
+    -- missed across a reload would otherwise stick until the next press).
+    input.sprintHeldKBM  = false
+    input.sprintKeyHeld  = false
+    input.pressingSprint = false
 
     self._config = config
     self._Helpers = Helpers
@@ -277,6 +316,7 @@ function OverclockedLynxPaws:Setup()
     self._input = require("input")
     self._camera = state.camera
     self._wallState = wallState
+    self._ShiftCompat = require("shiftcompat")
 
     self.loaded = true
 

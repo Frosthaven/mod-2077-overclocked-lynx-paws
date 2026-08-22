@@ -1,6 +1,7 @@
 local cfg = require("config").cfg
 local state = require("state")
 local wallState = state.wallState
+local camera = state.camera
 local Helpers = require("helpers")
 local input = require("input")
 
@@ -52,6 +53,11 @@ function SafeLanding.triggerSafeRoll(fallDist)
     holsterReq.requestType = EquipmentManipulationAction.UnequipWeapon
     holsterReq.owner = wallState.player
     Game.GetScriptableSystemsContainer():Get(CName.new("EquipmentSystem")):QueueRequest(holsterReq)
+    -- Hand the camera orientation to the roll cleanly: any residual wall-run
+    -- tilt (landing straight out of a run) would otherwise make the IDLE unroll
+    -- lerp rewrite the orientation every frame and clobber the pitch spin. The
+    -- roll ends at identity anyway, so tilt = 0 is the only consistent state.
+    Helpers.resetCameraRoll()
     -- Start roll immediately (no pre-roll delay)
     local fwd = Game.GetCameraSystem():GetActiveCameraForward()
     wallState.safeRollDir = Vector4.Normalize(Vector4.new(fwd.x, fwd.y, 0, 0))
@@ -93,6 +99,10 @@ function SafeLanding.clearAllFacts()
     qs:SetFact(CName.new("wr_sprint"), 0)
     qs:SetFact(CName.new("wr_wall_active"), 0)
     qs:SetFact(CName.new("wr_reset_jumps"), 0)
+    -- Sprint bridge facts are rewritten by the PSM every tick; clearing them
+    -- here just guarantees a CET reload can't start from a stale 1.
+    qs:SetFact(CName.new("wr_sprint_held"), 0)
+    qs:SetFact(CName.new("wr_sprint_key"), 0)
 end
 
 --- Clear safe-landing communication facts only. Used on every airborne→ground
@@ -135,6 +145,66 @@ function SafeLanding.restoreModelAndWeapon()
         Game.GetScriptableSystemsContainer():Get(CName.new("EquipmentSystem")):QueueRequest(equipReq)
         wallState.safeRollShouldReequip = false
     end
+end
+
+--- True while the roll owns the camera / mesh / crouch state (roll or standup).
+--- Also consulted by the camera-ownership predicate in shiftcompat.lua.
+--- @return boolean
+function SafeLanding.isRollActive()
+    return wallState.safeRollTimer ~= nil or wallState.safeRollUncrouch ~= nil
+end
+
+--- Pure-Lua field reset with no entity calls, so it is safe to call when the
+--- player entity is already gone (save load, main menu).
+function SafeLanding.resetRollState()
+    wallState.safeRollTimer          = nil
+    wallState.safeRollUncrouch       = nil
+    wallState.safeRollExitSpeed      = nil
+    wallState.safeRollDir            = nil
+    wallState.safeRollSoundCountdown = nil
+    wallState.safeRollCleanupTimer   = nil
+    wallState.safeRollMeshIsHidden   = false
+    wallState.safeRollShouldReequip  = false
+    wallState.safeLandDebugText      = nil
+end
+
+--- Unwind an in-progress roll or standup that can no longer finish normally.
+--- The roll only ticks from updateIdle, so if a wall phase / mantis hook /
+--- air-dash takeover steals the phase mid-roll, or the mod is disabled or shut
+--- down, the camera would otherwise stay at the -0.7m drop with the mesh hidden
+--- and ForceCrouch stuck. Idempotent: a no-op unless a roll is active, so it
+--- can never fire on the normal path (updateUncrouch nils both timers first).
+--- @param reason string Debug label for the log.
+--- @return boolean True if a roll was actually aborted.
+function SafeLanding.abortRoll(reason)
+    if not SafeLanding.isRollActive() then return false end
+    Helpers.logDebug("[SafeLand] abort roll: " .. tostring(reason))
+    local player = wallState.player
+    if player then
+        local camComp = player:GetFPPCameraComponent()
+        if camComp then camComp:SetLocalPosition(Vector4.new(0, 0, 0, 0)) end
+        -- Pitch spin -> 0, keeping whatever roll tilt the current phase owns
+        -- (0 in IDLE, the wall tilt if a run just began). Deliberately NOT
+        -- resetCameraRoll(): that would zero the targetTilt enterWallRun just set.
+        Helpers.applyCameraRoll(camera.tilt)
+        SafeLanding.restoreModelAndWeapon()
+        StatusEffectHelper.RemoveStatusEffect(player,
+            TweakDBID.new("GameplayRestriction.ForceCrouch"))
+        if wallState.safeRollSoundCountdown then
+            Helpers.stopSound("q304_sc_09b_songbird_stumbles_tunnel")
+        end
+    end
+    local qs = Game.GetQuestsSystem()
+    if qs then
+        qs:SetFact(CName.new("wr_safe_roll"), 0)
+        qs:SetFact(CName.new("wr_safe_land"), 0)
+        qs:SetFact(CName.new("wr_landing_safe"), 0)
+        -- The crouch press that buffered the roll may have toggled crouch;
+        -- let the Redscript Crouch/Stand hooks clear CrouchToggled.
+        qs:SetFact(CName.new("wr_uncrouch"), 1)
+    end
+    SafeLanding.resetRollState()
+    return true
 end
 
 --- Update the safe roll animation each frame: teleport forward with collision and apply camera pitch spin.

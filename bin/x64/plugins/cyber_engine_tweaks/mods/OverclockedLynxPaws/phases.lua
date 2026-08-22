@@ -33,6 +33,7 @@ local WALL_BOUNCE_OUTWARD_SPEED = 3.0  -- below this entry speed, bounce straigh
 -- Wall-slide SFX. Softer mud surface in place of the original loud tile slide.
 -- (Vanilla SoundPlayEvent has no volume control, so quieting = softer event.)
 local WALL_SLIDE_SOUND = "lcm_fs_additional_mud_slide"
+local OVERHANG_EFFORT_SOUND = "ono_v_effort_short"  -- same effort vocal as the roll stand-up / ledge mount
 local WALL_BOUNCE_LOCKOUT    = 0.25    -- seconds after a bounce before walls can re-engage
 local AIM_KICK_ARC_RATIO   = 0.75      -- vertical boost as fraction of kick force (aim kick)
 local RHANG_SCOOP_DEG      = 12        -- pitch scoop amplitude during reverse hang (degrees)
@@ -243,7 +244,7 @@ local function isSameWall(wallNormal)
 end
 
 -- Forward declarations for mutual references
-local enterWallClimb, beginLedgeMount, beginWallJump, beginReverseHang, beginExitPush, beginMantisGrab, endMantisGrab
+local enterWallClimb, beginLedgeMount, beginOverhangMount, beginWallJump, beginReverseHang, beginExitPush, beginMantisGrab, endMantisGrab
 
 --- Check camera angle against wall normal and return the transition type.
 --- @param wn Vector4 The wall normal to check against.
@@ -327,6 +328,29 @@ local function tryChainWall(kickDir)
     return true
 end
 
+--- Shared tail of every mount entry: aim the body at the wall over the mount,
+--- clear the wall-action state by hand (cleanupWallState would reset the
+--- phase) and enter LEDGE_MOUNTING.
+local function finishMountSetup(wallNormal)
+    ledgeMount.startYaw = wallState.player:GetWorldYaw()
+    local fwd = Game.GetCameraSystem():GetActiveCameraForward()
+    local fwdFlat = Vector4.Normalize(Vector4.new(fwd.x, fwd.y, 0, 0))
+    local wallFace = Vector4.Normalize(Vector4.new(-wallNormal.x, -wallNormal.y, 0, 0))
+    local dot   = fwdFlat.x * wallFace.x + fwdFlat.y * wallFace.y
+    local cross = fwdFlat.x * wallFace.y - fwdFlat.y * wallFace.x
+    ledgeMount.targetYaw = ledgeMount.startYaw + math.deg(math.atan2(cross, dot))
+
+    wallState.wallSide     = nil
+    wallState.wallNormal   = nil
+    wallState.wallRunDir   = nil
+    wallState.kickDirection = nil
+    wallState.aimHoldZ     = nil
+    wallState.timer        = 0
+    wallState.wallLostTimer = nil
+    wallState.phase        = "LEDGE_MOUNTING"
+    camera.targetTilt = 0
+end
+
 beginLedgeMount = function(wallNormal)
     local pos = wallState.player:GetWorldPosition()
 
@@ -340,6 +364,7 @@ beginLedgeMount = function(wallNormal)
     end
 
     Helpers.playSound("ono_v_effort_short")
+    ledgeMount.overhang = nil
 
     -- Find landing spot: 0.8m past the wall at ledge height, raycast down
     local landX = pos.x - wallNormal.x * 0.8
@@ -369,25 +394,48 @@ beginLedgeMount = function(wallNormal)
     ledgeMount.zB = 4*pZ - 3*sZ - lZ
     ledgeMount.zC = sZ
 
-    -- Compute target yaw: rotate camera to face the wall
-    ledgeMount.startYaw = wallState.player:GetWorldYaw()
-    local fwd = Game.GetCameraSystem():GetActiveCameraForward()
-    local fwdFlat = Vector4.Normalize(Vector4.new(fwd.x, fwd.y, 0, 0))
-    local wallFace = Vector4.Normalize(Vector4.new(-wallNormal.x, -wallNormal.y, 0, 0))
-    local dot   = fwdFlat.x * wallFace.x + fwdFlat.y * wallFace.y
-    local cross = fwdFlat.x * wallFace.y - fwdFlat.y * wallFace.x
-    ledgeMount.targetYaw = ledgeMount.startYaw + math.deg(math.atan2(cross, dot))
+    finishMountSetup(wallNormal)
+end
 
-    -- Clear wall run state (manually instead of cleanupWallState to preserve LEDGE_MOUNTING phase)
-    wallState.wallSide     = nil
-    wallState.wallNormal   = nil
-    wallState.wallRunDir   = nil
-    wallState.kickDirection = nil
-    wallState.aimHoldZ     = nil
-    wallState.timer        = 0
-    wallState.wallLostTimer = nil
-    wallState.phase        = "LEDGE_MOUNTING"
-    camera.targetTilt = 0
+--- Mount a protruding ledge the climb just bumped its head on: swing out past
+--- the lip's edge, rise alongside it, then pull in and over onto its top.
+--- Three straight segments in (outward offset, z), each smoothstepped, with
+--- time split by segment length so the motion reads as one continuous effort.
+--- @param wallNormal Vector4 Wall normal (XY), pointing toward the player.
+--- @param ov table Result of Helpers.findOverhangTop.
+beginOverhangMount = function(wallNormal, ov)
+    local pos = wallState.player:GetWorldPosition()
+    local n = wallNormal
+    local function at(offset, z)
+        return Vector4.new(pos.x + n.x * offset, pos.y + n.y * offset, z, 1)
+    end
+
+    Helpers.playSound(OVERHANG_EFFORT_SOUND)
+
+    -- Swing out at constant Z: we're still under the lip for most of that
+    -- segment, so any rise here would push the head into the underside.
+    local wp = {
+        at(0,             pos.z),          -- hanging under the lip
+        at(ov.outOffset,  pos.z),          -- swung out past the edge (level)
+        at(ov.outOffset,  ov.topZ + 0.3),  -- risen alongside the lip
+        at(ov.landOffset, ov.landZ),       -- pulled in, on top
+    }
+    local l1 = Vector4.Distance(wp[1], wp[2])
+    local l2 = Vector4.Distance(wp[2], wp[3])
+    local l3 = Vector4.Distance(wp[3], wp[4])
+    local total = math.max(0.01, l1 + l2 + l3)
+    ledgeMount.overhang       = wp
+    ledgeMount.overhangSplits = { l1 / total, (l1 + l2) / total }
+    ledgeMount.startPos  = wp[1]
+    ledgeMount.landPos   = wp[4]
+    ledgeMount.timer     = 0
+    ledgeMount.duration  = math.min(1.4, math.max(0.8, total / 4.0))
+    ledgeMount.startTilt = camera.tilt
+
+    Helpers.logDebug(string.format("[CLIMB] overhang mount: edge=%.1f top=%+.2f out=%.1f land=%.1f dur=%.2f",
+        ov.edge, ov.topZ - pos.z, ov.outOffset, ov.landOffset, ledgeMount.duration))
+
+    finishMountSetup(wallNormal)
 end
 
 enterWallClimb = function(wallNormal, isChain)
@@ -539,6 +587,7 @@ end
 
 beginMantisGrab = function()
     local pos = wallState.player:GetWorldPosition()
+    local preGrabYaw = wallState.player:GetWorldYaw()  -- facing at the moment we meleed the wall
     wallState.aimHoldX = pos.x
     wallState.aimHoldY = pos.y
     wallState.aimHoldZ = pos.z
@@ -552,20 +601,8 @@ beginMantisGrab = function()
     -- Camera pan: compute yaw facing wall, shoulder-peek yaw, + 45° exit yaw in run direction
     wallState.mantisGrabYawWall  = math.deg(math.atan2(wallState.wallNormal.x, -wallState.wallNormal.y)) + 45  -- left of center
     wallState.mantisGrabYawShoulder = wallState.mantisGrabYawWall + 65  -- peek left over shoulder
-    local runDir = wallState.wallRunDir
-    if runDir then
-        -- 45° away from wall in the direction of travel: normalize(wallNormal + runDir)
-        local exitX = wallState.wallNormal.x + runDir.x
-        local exitY = wallState.wallNormal.y + runDir.y
-        local len = math.sqrt(exitX * exitX + exitY * exitY)
-        if len > 0.001 then
-            exitX, exitY = exitX / len, exitY / len
-        end
-        wallState.mantisGrabYawReturn = math.deg(math.atan2(-exitX, exitY))
-    else
-        -- No run direction (e.g. climbing) — face away from wall
-        wallState.mantisGrabYawReturn = math.deg(math.atan2(-wallState.wallNormal.x, wallState.wallNormal.y))
-    end
+    -- Mantis grab always pans back to the direction we were facing when we meleed the wall.
+    wallState.mantisGrabYawReturn = preGrabYaw
     wallState.mantisGrabPanShoulder = 0.30  -- seconds to peek over shoulder (slow wind-up)
     wallState.mantisGrabPanThrust   = 0.20  -- seconds to thrust toward wall
     wallState.mantisGrabPanToWall   = 0.50  -- total Phase 1 duration (shoulder + thrust)
@@ -634,7 +671,9 @@ endMantisGrab = function(doJump)
         Helpers.resetCameraRoll()
 
         local wn = wallState.lastKickWallNormal
-        local transition = getWallTransition(wn)
+        -- Only chain into a wall run/climb if the wall-run Lynx Paws requirement is met,
+        -- so kicking out of a mantis hang in mantis-only mode can't grant a free wall run.
+        local transition = (not cfg.requireLynxPaws or LynxPawMod.equipped) and getWallTransition(wn)
         if transition then
             Kerenzikov.deactivate()
             wallState.aimHoldZ = nil
@@ -681,12 +720,31 @@ local function updateIdle(dt, airborne, dashCancel, LynxPaw)
     end
     local bounceLocked = wallState.bounceLockout ~= nil
 
+    -- Air mantis-hook (checked before the chain scan so melee = hook, no melee = auto-chain):
+    -- with Mantis Blades, press melee facing a wall to grab/hang it straight from the air —
+    -- hang, wall-kick, repeat. Active whenever mantis is allowed (Lynx Paws equipped, or the
+    -- "Mantis Hang Requires Lynx Paws" option is off), and is NOT limited by chain count. No
+    -- same-wall guard (unlike chains): you may re-grab the wall you just left, e.g. to scale it.
+    -- Each hook needs a fresh melee press, so there's no auto-loop.
+    if airborne and not bounceLocked and input.meleeJustPressed
+       and Mantis.checkEquipped() and (not cfg.requireLynxPawsForMantis or LynxPaw.equipped) then
+        local hit, wallN = WallDetect.detectForwardWall()
+        if hit and wallN then
+            wallState.wallNormal = wallN
+            wallState.wallSide = nil
+            wallState.wallRunDir = nil
+            beginMantisGrab()
+            return
+        end
+    end
+
     -- Post-kick chain detection: scan for walls during the impulse arc
     if wallState.chainScanTimer then
         wallState.chainScanTimer = wallState.chainScanTimer + dt
 
         if wallState.chainScanTimer > 0.1 and wallState.chainScanTimer < CHAIN_SCAN_WINDOW
            and not bounceLocked
+           and (not cfg.requireLynxPaws or LynxPaw.equipped)
            and airborne and (cfg.unlimitedWallChains or wallState.chainCount < cfg.maxWallChains) then
             -- Side walls → wall run
             local side, sideRayDir, sideDist, sideHitPos = WallDetect.detectWall()
@@ -761,7 +819,7 @@ local function updateIdle(dt, airborne, dashCancel, LynxPaw)
     if airborne
        and not bounceLocked
        and (not cfg.requireLynxPaws or LynxPaw.equipped)
-       and (not cfg.requireSprint or input.pressingSprint)
+       and (not cfg.requireSprint or input.sprintKeyHeld)
        and (dashCancel or vel.z >= 0)
     then
         local action, side, rayDir, wallN, deg = WallDetect.qualifyWallAction(vel)
@@ -1100,9 +1158,16 @@ local function updateWallClimbing(dt, airborne, dashCancel, LynxPaw)
     local pos = wallState.player:GetWorldPosition()
     local headOrigin = Vector4.new(pos.x, pos.y, pos.z + 1.8, 0)
     local upDir = Vector4.new(0, 0, 1, 0)
-    local hitCeiling, _, ceilDist = Helpers.raycast(headOrigin, upDir, 0.5)
+    local hitCeiling, ceilPos, ceilDist = Helpers.raycast(headOrigin, upDir, 0.5)
 
     if hitCeiling then
+        -- A shallow protruding ledge (balcony lip, cornice, roof edge) is
+        -- mountable by swinging around it instead of dropping off.
+        local ov = Helpers.findOverhangTop(pos, wallState.wallNormal, ceilPos.z)
+        if ov then
+            beginOverhangMount(wallState.wallNormal, ov)
+            return
+        end
         if wallState.slideBudget and wallState.slideBudget > 0 then
             transitionToSlide()
         else
@@ -1505,8 +1570,11 @@ local function updateMantisGrab(dt, airborne, dashCancel, LynxPaw)
         return
     end
 
-    -- Exit: melee again → drop off wall
-    if input.meleeJustPressed and wallState.phaseTimer > 0.1 then
+    -- Exit: melee again → drop off wall, but only AFTER the entry pan (the look-away/
+    -- look-back) completes, so a second melee can't cut the grab animation short.
+    -- panTotal mirrors the pan section below: panToWall + panHold(0.15) + panReturn.
+    local mantisPanTotal = (wallState.mantisGrabPanToWall or 0.35) + 0.15 + (wallState.mantisGrabPanReturn or 0.18)
+    if input.meleeJustPressed and wallState.phaseTimer >= mantisPanTotal then
         endMantisGrab(false)
         return
     end
@@ -1745,9 +1813,28 @@ local function updateLedgeMounting(dt, airborne, dashCancel, LynxPaw)
     local t = math.min(1.0, ledgeMount.timer / ledgeMount.duration)
     local st = Helpers.smoothstep(t)
 
-    local x = ledgeMount.startPos.x + (ledgeMount.landPos.x - ledgeMount.startPos.x) * st
-    local y = ledgeMount.startPos.y + (ledgeMount.landPos.y - ledgeMount.startPos.y) * st
-    local z = ledgeMount.zA * t * t + ledgeMount.zB * t + ledgeMount.zC
+    local x, y, z
+    if ledgeMount.overhang then
+        -- Piecewise path around a protruding lip: out, up, in. Each segment is
+        -- smoothstepped on its own so we pause-and-push at the corners.
+        local wp, sp = ledgeMount.overhang, ledgeMount.overhangSplits
+        local a, b, u
+        if t < sp[1] then
+            a, b, u = wp[1], wp[2], t / sp[1]
+        elseif t < sp[2] then
+            a, b, u = wp[2], wp[3], (t - sp[1]) / (sp[2] - sp[1])
+        else
+            a, b, u = wp[3], wp[4], (t - sp[2]) / (1.0 - sp[2])
+        end
+        local su = Helpers.smoothstep(math.min(1.0, math.max(0.0, u)))
+        x = a.x + (b.x - a.x) * su
+        y = a.y + (b.y - a.y) * su
+        z = a.z + (b.z - a.z) * su
+    else
+        x = ledgeMount.startPos.x + (ledgeMount.landPos.x - ledgeMount.startPos.x) * st
+        y = ledgeMount.startPos.y + (ledgeMount.landPos.y - ledgeMount.startPos.y) * st
+        z = ledgeMount.zA * t * t + ledgeMount.zB * t + ledgeMount.zC
+    end
 
     local yawDiff = ledgeMount.targetYaw - ledgeMount.startYaw
     local yaw = ledgeMount.startYaw + yawDiff * st
@@ -1762,6 +1849,8 @@ local function updateLedgeMounting(dt, airborne, dashCancel, LynxPaw)
     Helpers.applyCameraRoll(camera.tilt)
 
     if t >= 1.0 then
+        ledgeMount.overhang = nil
+        ledgeMount.overhangSplits = nil
         Helpers.resetCameraRoll()
         StatusEffectHelper.ApplyStatusEffect(wallState.player,
             TweakDBID.new("GameplayRestriction.ForceCrouch"))
@@ -1880,6 +1969,10 @@ local phaseHandlers = {
 -- Per-frame update
 ---------------------------------------------------------------------------
 local settingsSyncTimer = 0
+-- True once the master-toggle-off teardown has run; reset when re-enabled.
+-- Makes the disabled branch a one-shot camera hand-back instead of rewriting
+-- identity every frame (which would fight any other camera mod forever).
+local masterOffLatched = false
 
 --- Main per-frame update: syncs settings, detects walls, and drives the wall action state machine.
 --- @param dt number Delta time in seconds.
@@ -1914,15 +2007,30 @@ function Phases.update(dt, syncSettings, LynxPaw)
 
     -- Master toggle
     if not cfg.enabled then
-        Kerenzikov.deactivate()
-        if wallState.phase ~= "IDLE" then exitWallRun() end
-        Helpers.resetCameraRoll()
+        if not masterOffLatched then
+            masterOffLatched = true
+            Kerenzikov.deactivate()
+            if wallState.phase ~= "IDLE" then exitWallRun() end
+            -- Unwind a mid-flight safe roll (camera drop / spin / mesh / crouch)
+            -- and hand the camera back once: identity orientation + zero offset.
+            SafeLanding.abortRoll("disabled")
+            Helpers.resetCameraTransform()
+        end
         -- Clear safe-landing facts so the Redscript hook can't keep
         -- downgrading falls (and preventing damage) while the mod is off.
         SafeLanding.clearLandingFacts()
         wallState.crouchBuffered = false
         wallState.debugText = cfg.debugEnabled and "WallRun: DISABLED" or ""
         return
+    end
+    masterOffLatched = false
+
+    -- Safe-roll watchdog: the roll only ticks in IDLE (updateIdle). If a wall
+    -- phase / mantis hook / air-dash takeover stole the phase mid-roll, unwind
+    -- it now instead of leaving the camera at -0.7m, the mesh hidden and
+    -- ForceCrouch stuck until IDLE resumes.
+    if wallState.phase ~= "IDLE" and SafeLanding.isRollActive() then
+        SafeLanding.abortRoll("phase " .. tostring(wallState.phase))
     end
 
     local airborne = Helpers.isAirborne() or Helpers.isAirDashing()
@@ -2050,7 +2158,7 @@ function Phases.update(dt, syncSettings, LynxPaw)
     end
 
     -- During air dash (even from IDLE), actively detect walls and take over mid-dash
-    if dashCancel and wallState.phase == "IDLE" and airborne and (not cfg.requireLynxPaws or LynxPaw.equipped) and (not cfg.requireSprint or input.pressingSprint) then
+    if dashCancel and wallState.phase == "IDLE" and airborne and (not cfg.requireLynxPaws or LynxPaw.equipped) and (not cfg.requireSprint or input.sprintKeyHeld) then
         local vel = wallState.player:GetVelocity()
         local action, side, rayDir, wallN, deg = WallDetect.classifyWallAction(vel)
 

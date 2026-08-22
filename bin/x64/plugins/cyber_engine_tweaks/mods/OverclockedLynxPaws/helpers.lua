@@ -481,12 +481,118 @@ function Helpers.findLedgeTop(pos, wallNormal)
     return nil
 end
 
+local OVERHANG_MAX_DEPTH     = 1.125 -- how far the lip may stick out past the player's column (half character height +25%)
+local OVERHANG_PROBE_STEP    = 0.075 -- outward probe spacing (15 probes; the last one lands exactly on MAX_DEPTH)
+local OVERHANG_MAX_THICKNESS = 1.0   -- lip underside -> top
+local OVERHANG_SWING_OUT     = 0.5   -- extra outward clearance past the lip edge (capsule radius + margin)
+local OVERHANG_LAND_INSET    = 0.7   -- how far in from the lip edge we land
+local OVERHANG_BODY_HEIGHTS  = { 0.3, 1.0, 1.7 }  -- knee / hip / head probe heights for corridor checks
+
+--- When a wall climb's head ray hits the underside of a protruding ledge
+--- (balcony lip, cornice, roof edge), work out whether the lip is shallow
+--- enough to swing around and over: find its outer edge, its top surface, the
+--- clear corridors we move through, and a landing spot on top. Every step is a
+--- reject-on-doubt check so we never commit to a path that would push the
+--- capsule through geometry.
+--- @param pos Vector4 Player world position (feet).
+--- @param wallNormal Vector4 Wall surface normal (XY), pointing away from the wall toward the player.
+--- @param ceilZ number World Z of the underside hit above the player's head.
+--- @return table|nil { edge, topZ, landZ, outOffset, landOffset } (offsets along wallNormal from pos), or nil.
+function Helpers.findOverhangTop(pos, wallNormal, ceilZ)
+    local n = wallNormal
+    local up = Vector4.new(0, 0, 1, 0)
+    local down = Vector4.new(0, 0, -1, 0)
+    local inward = Vector4.new(-n.x, -n.y, 0, 0)
+    local function at(offset, z)
+        return Vector4.new(pos.x + n.x * offset, pos.y + n.y * offset, z, 0)
+    end
+
+    -- 1. Outer edge: step outward until an upward probe from HIP height finds
+    --    nothing between us and the top of the thickest lip we accept. Starting
+    --    low (not just under ceilZ) means a sloped or stepped underside that
+    --    dips below ceilZ further out still reads as "covered" instead of
+    --    letting the probe start inside the lip. Any hit up there (lip or
+    --    otherwise) is conservatively "still covered".
+    local edge
+    local probeZ = pos.z + 1.0
+    local probeLen = (ceilZ + OVERHANG_MAX_THICKNESS) - probeZ
+    local probeCount = math.floor(OVERHANG_MAX_DEPTH / OVERHANG_PROBE_STEP + 0.5)
+    for i = 1, probeCount do
+        local d = i * OVERHANG_PROBE_STEP
+        if not Helpers.raycast(at(d, probeZ), up, probeLen) then
+            edge = d
+            break
+        end
+    end
+    if not edge then return nil end
+
+    -- 2. Lip top: drop a ray from above, just inside the edge.
+    local topOrigin = at(edge - 0.15, ceilZ + OVERHANG_MAX_THICKNESS + 0.3)
+    local hitTop, topPos = Helpers.raycast(topOrigin, down, OVERHANG_MAX_THICKNESS + 0.5)
+    if not hitTop or topPos.z < ceilZ or (topPos.z - ceilZ) > OVERHANG_MAX_THICKNESS then
+        return nil
+    end
+    local topZ = topPos.z
+
+    -- 3. Swing-out corridor: from our column straight out to the swing point,
+    --    at knee, hip and head height. The capsule moves at constant Z here
+    --    (still under the lip), so this is exactly the space it sweeps.
+    local outOffset = edge + OVERHANG_SWING_OUT
+    for _, h in ipairs(OVERHANG_BODY_HEIGHTS) do
+        if Helpers.raycast(at(0, pos.z + h), n, outOffset + 0.1) then return nil end
+    end
+
+    -- 4. Rise column outside the edge: from knee height up to standing height
+    --    above the lip (no second overhang, nothing above the lip edge).
+    local colLen = (topZ + 0.3 + 1.8) - (pos.z + 0.3)
+    if Helpers.raycast(at(outOffset, pos.z + 0.3), up, colLen) then return nil end
+
+    -- 5. Landing: on top of the lip, inset from the edge, with head room.
+    local landOffset = edge - OVERHANG_LAND_INSET
+    local hitLand, landPos = Helpers.raycast(at(landOffset, topZ + 0.6), down, 1.2)
+    if not hitLand or landPos.z < ceilZ then return nil end
+    local landZ = landPos.z + 0.1
+    if Helpers.raycast(at(landOffset, landZ + 0.3), up, 1.6) then return nil end
+
+    -- 6. Pull-in corridor: from the risen point back in over the lip to the
+    --    landing, at knee/hip/head above the lip top. Catches a railing, post
+    --    or wall standing on the lip between its edge and where we land.
+    local pullLen = (outOffset - landOffset) + 0.1
+    local baseZ = math.max(topZ + 0.3, landZ)
+    for _, h in ipairs(OVERHANG_BODY_HEIGHTS) do
+        if Helpers.raycast(at(outOffset, baseZ + h), inward, pullLen) then return nil end
+    end
+
+    return {
+        edge = edge, topZ = topZ, landZ = landZ,
+        outOffset = outOffset, landOffset = landOffset,
+    }
+end
+
 --- Reset camera roll to zero (tilt, targetTilt, rollBlendProgress, and apply).
 function Helpers.resetCameraRoll()
     camera.tilt = 0
     camera.targetTilt = 0
     camera.rollBlendProgress = 0
     Helpers.applyCameraRoll(0)
+end
+
+--- Full camera hand-back: roll bookkeeping to zero, then position AND
+--- orientation on the FPP component to identity. Used on shutdown and master
+--- toggle off, where a safe roll's -0.7m drop or pitch spin may be mid-flight.
+--- pcall'd because both paths can run while the player entity is tearing down.
+function Helpers.resetCameraTransform()
+    camera.tilt = 0
+    camera.targetTilt = 0
+    camera.rollBlendProgress = 0
+    if not wallState.player then return end
+    pcall(function()
+        local camComp = wallState.player:GetFPPCameraComponent()
+        if camComp then
+            camComp:SetLocalPosition(Vector4.new(0, 0, 0, 0))
+            camComp:SetLocalOrientation(EulerAngles.ToQuat(EulerAngles.new(0, 0, 0)))
+        end
+    end)
 end
 
 local footstepInterval = 0.68

@@ -133,6 +133,10 @@ local ledgeMount = {
     duration  = 0.6,
     -- Precomputed Z quadratic coefficients: z(t) = A*t² + B*t + C
     zA = 0, zB = 0, zC = 0,
+    -- Overhang mount (swing around a protruding lip): when set, the mount
+    -- follows these waypoints instead of the quadratic arc.
+    overhang       = nil,  -- { Vector4 x4 }: under lip -> swung out -> risen -> on top
+    overhangSplits = nil,  -- { t1, t2 } segment boundaries as fractions of duration
 }
 
 return {

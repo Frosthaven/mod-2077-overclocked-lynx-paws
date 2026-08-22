@@ -21,7 +21,7 @@ build: archive
     mkdir -p "{{repo}}/build/staging/archive/pc/mod"
     cp "{{repo}}/archive/pc/mod/WallRunning.archive" "{{repo}}/build/staging/archive/pc/mod/"
     cp "{{repo}}/archive/pc/mod/WallRunning.archive.xl" "{{repo}}/build/staging/archive/pc/mod/"
-    find "{{repo}}/build/staging" -name "*.log" -o -name "*.bak" -o -name "*.tmp" -o -name "*.sqlite3" -o -name "settings.json" -o -name "vkd3d-proton.cache.write" | xargs rm -f 2>/dev/null; true
+    find "{{repo}}/build/staging" -name "*.log" -o -name "*.bak" -o -name "*.tmp" -o -name "*.sqlite3" -o -name "settings.json" -o -name "vkd3d-proton.cache.write" -o -name "shift_owner.flag" | xargs rm -f 2>/dev/null; true
     cd "{{repo}}/build/staging" && zip -r "{{repo}}/build/OverclockedLynxPaws.zip" . -x ".*"
     rm -rf "{{repo}}/build/staging"
     @echo "Built: build/OverclockedLynxPaws.zip"
